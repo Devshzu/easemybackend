@@ -6,7 +6,7 @@ export const config = {
   port: process.env.PORT || 8080,
   publicBaseUrl: process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 8080}`,
   nodeEnv: process.env.NODE_ENV || 'development',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000' || "https://easemyweb.in" || "http://easemyweb.in",
   db: {
     uri: process.env.DATABASE_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/easemyweb'
   },
