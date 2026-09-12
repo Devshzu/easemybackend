@@ -12,6 +12,10 @@ const commentSchema = new mongoose.Schema(
       required: [true, 'Comment message is required'],
       trim: true,
     },
+    parentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -62,6 +66,10 @@ const blogSchema = new mongoose.Schema(
     published: {
       type: Boolean,
       default: true,
+    },
+    likedBy: {
+      type: [String],
+      default: [],
     },
     comments: [commentSchema],
   },
