@@ -98,7 +98,7 @@ export class BlogService {
   /**
    * Add comment to blog post
    */
-  static async addComment(idOrSlug, { name, message }) {
+  static async addComment(idOrSlug, { name, message, parentId }) {
     if (!message || message.trim().length === 0) {
       throw new Error('Comment message is required');
     }
@@ -108,12 +108,78 @@ export class BlogService {
       blog.comments = [];
     }
 
+    if (parentId && !blog.comments.some((comment) => String(comment._id) === String(parentId))) {
+      throw new Error('Parent comment not found');
+    }
+
     blog.comments.push({
       name: name && name.trim() ? name.trim() : 'Anonymous Reader',
       message: message.trim(),
+      parentId: parentId || null,
     });
 
     await blog.save();
     return blog;
+  }
+
+  static async getCommentPage(idOrSlug, page = 1, limit = 8) {
+    const blog = await this.getBlogByIdOrSlug(idOrSlug);
+    const comments = blog.comments || [];
+    const repliesByParent = new Map();
+
+    comments.forEach((comment) => {
+      const parentId = comment.parentId ? String(comment.parentId) : null;
+      if (parentId) {
+        const replies = repliesByParent.get(parentId) || [];
+        replies.push(comment);
+        repliesByParent.set(parentId, replies);
+      }
+    });
+
+    const roots = comments
+      .filter((comment) => !comment.parentId)
+      .sort((first, second) => second.createdAt - first.createdAt);
+    const start = (page - 1) * limit;
+    const pageRoots = roots.slice(start, start + limit);
+    const pageComments = [];
+    const appendThread = (comment) => {
+      pageComments.push(comment);
+      (repliesByParent.get(String(comment._id)) || [])
+        .sort((first, second) => first.createdAt - second.createdAt)
+        .forEach(appendThread);
+    };
+    pageRoots.forEach(appendThread);
+
+    return {
+      comments: pageComments,
+      page,
+      limit,
+      total: roots.length,
+      hasMore: start + pageRoots.length < roots.length,
+    };
+  }
+
+  static async toggleLike(idOrSlug, visitorId) {
+    if (!visitorId || typeof visitorId !== 'string' || visitorId.length < 16 || visitorId.length > 128) {
+      throw new Error('A valid visitor ID is required');
+    }
+
+    const blog = await this.getBlogByIdOrSlug(idOrSlug);
+    const likedBy = blog.likedBy || [];
+    const alreadyLiked = likedBy.includes(visitorId);
+    blog.likedBy = alreadyLiked
+      ? likedBy.filter((id) => id !== visitorId)
+      : [...likedBy, visitorId];
+    await blog.save();
+
+    return { likesCount: blog.likedBy.length, liked: !alreadyLiked };
+  }
+
+  static async getLikeStatus(idOrSlug, visitorId) {
+    const blog = await this.getBlogByIdOrSlug(idOrSlug);
+    return {
+      likesCount: blog.likedBy?.length || 0,
+      liked: Boolean(visitorId && blog.likedBy?.includes(visitorId)),
+    };
   }
 }
