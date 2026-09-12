@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "generate-blog": "node src/modules/blog/blog.generator.js"
   },
   "keywords": [
     "express",
@@ -26,6 +27,9 @@
     "helmet": "^8.0.0",
     "mongoose": "^9.10.0",
     "morgan": "^1.10.0",
+    "node-cron": "^4.2.1",
+    "rss-parser": "^3.13.0",
+    "sharp": "^0.35.4",
     "zod": "^3.24.2"
   },
   "devDependencies": {

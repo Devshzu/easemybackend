@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config } from './config/env.config.js';
 import routes from './routes/index.js';
 import { apiRateLimiter } from './middlewares/rateLimiter.middleware.js';
@@ -10,6 +12,9 @@ import { notFound } from './middlewares/notFound.middleware.js';
 import { errorHandler } from './middlewares/errorHandler.middleware.js';
 
 const app = express();
+const backendRoot = path.dirname(fileURLToPath(import.meta.url));
+
+app.use('/blog', express.static(path.resolve(backendRoot, '../public/blog')));
 
 // Security Middlewares
 app.use(helmet());
