@@ -51,6 +51,23 @@ const blogSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Blog content is required'],
     },
+    metaDescription: {
+      type: String,
+      trim: true,
+    },
+    keywords: [{
+      type: String,
+      trim: true,
+    }],
+    tableOfContents: [{
+      title: String,
+      id: String,
+    }],
+    references: [{
+      title: String,
+      source: String,
+      url: String,
+    }],
     author: {
       type: String,
       default: 'EaseMyWeb Team',
