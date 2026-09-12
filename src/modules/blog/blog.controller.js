@@ -30,3 +30,10 @@ export const deleteBlog = asyncHandler(async (req, res) => {
   const result = await BlogService.deleteBlog(id);
   res.status(200).json(new ApiResponse(200, result, 'Blog deleted successfully'));
 });
+
+export const addComment = asyncHandler(async (req, res) => {
+  const { idOrSlug } = req.params;
+  const { name, message } = req.body;
+  const blog = await BlogService.addComment(idOrSlug, { name, message });
+  res.status(201).json(new ApiResponse(201, blog, 'Comment added successfully'));
+});

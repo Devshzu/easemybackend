@@ -90,4 +90,26 @@ export class BlogService {
     }
     return { deleted: true, id };
   }
+
+  /**
+   * Add comment to blog post
+   */
+  static async addComment(idOrSlug, { name, message }) {
+    if (!message || message.trim().length === 0) {
+      throw new Error('Comment message is required');
+    }
+
+    const blog = await this.getBlogByIdOrSlug(idOrSlug);
+    if (!blog.comments) {
+      blog.comments = [];
+    }
+
+    blog.comments.push({
+      name: name && name.trim() ? name.trim() : 'Anonymous Reader',
+      message: message.trim(),
+    });
+
+    await blog.save();
+    return blog;
+  }
 }

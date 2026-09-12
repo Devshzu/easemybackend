@@ -1,5 +1,23 @@
 import mongoose from 'mongoose';
 
+const commentSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      trim: true,
+      default: 'Anonymous Reader',
+    },
+    message: {
+      type: String,
+      required: [true, 'Comment message is required'],
+      trim: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
 const blogSchema = new mongoose.Schema(
   {
     title: {
@@ -45,6 +63,7 @@ const blogSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    comments: [commentSchema],
   },
   {
     timestamps: true,

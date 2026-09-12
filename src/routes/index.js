@@ -16,10 +16,14 @@ router.use('/api/v1/schedule', scheduleRoutes);
 router.use('/api/v1/auth', authRoutes);
 router.use('/api/v1/blogs', blogRoutes);
 
-// Compatibility endpoints (matching frontend API config defaults)
+// Compatibility endpoints (matching frontend API config defaults & BFF proxy)
 router.use('/health', healthRoutes);
 router.use('/api/contact', contactRoutes);
 router.use('/api/blogs', blogRoutes);
+router.use('/api/auth', authRoutes);
+router.use('/api/newsletter', newsletterRoutes);
+router.use('/api/schedule', scheduleRoutes);
+router.use('/auth', authRoutes);
 
 export default router;
 
