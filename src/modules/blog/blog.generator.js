@@ -223,7 +223,7 @@ Return ONLY valid JSON matching this exact structure:
   "excerpt": "Short compelling excerpt summary (2-3 sentences)",
   "metaTitle": "SEO-optimized meta title under 60 characters",
   "metaDescription": "Concise SEO meta description",
-  "keywords": ["primary SEO keyword", "secondary SEO keyword", "relevant long-tail keyword"],
+  "keywords": ["primary SEO keyword", "secondary SEO keyword", "relevant long-tail keyword", "EaseMyWeb", "EaseMyWeb ${category}"],
   "content": "<article class=\"blog-article-body\"><section class=\"blog-section\"><p class=\"blog-paragraph\">Introduction text...</p></section><section class=\"blog-section\"><h2 class=\"blog-heading-2\" id=\"section-id\">Section Title</h2><p class=\"blog-paragraph\">Section explanation...</p><ul class=\"blog-list\"><li class=\"blog-list-item\"><strong>Key Point:</strong> Description...</li></ul></section></article>",
   "tableOfContents": [
     { "title": "Section Title", "id": "section-id" },
@@ -280,6 +280,13 @@ export function validateGeneratedArticle(article, expectedCategory) {
   if (!Array.isArray(article.keywords) || article.keywords.length === 0 || article.keywords.some((keyword) => typeof keyword !== 'string' || !keyword.trim())) {
     throw new Error('Generated article is missing a valid keywords array');
   }
+
+  // Keep the brand discoverable in every automated article without relying on model output.
+  article.keywords = [...new Set([
+    ...article.keywords.map((keyword) => keyword.trim()),
+    'EaseMyWeb',
+    `EaseMyWeb ${expectedCategory}`
+  ])];
 
   // Ensure assigned category match
   if (article.category !== expectedCategory) {
