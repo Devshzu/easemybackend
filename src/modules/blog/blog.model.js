@@ -47,6 +47,10 @@ const blogSchema = new mongoose.Schema(
       required: [true, 'Excerpt summary is required'],
       trim: true,
     },
+    metaTitle: {
+      type: String,
+      trim: true,
+    },
     content: {
       type: String,
       required: [true, 'Blog content is required'],

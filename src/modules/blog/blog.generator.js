@@ -221,8 +221,9 @@ Return ONLY valid JSON matching this exact structure:
   "title": "Specific Editorial Article Title",
   "slug": "url-friendly-slug",
   "excerpt": "Short compelling excerpt summary (2-3 sentences)",
+  "metaTitle": "SEO-optimized meta title under 60 characters",
   "metaDescription": "Concise SEO meta description",
-  "keywords": ["keyword1", "keyword2", "keyword3"],
+  "keywords": ["primary SEO keyword", "secondary SEO keyword", "relevant long-tail keyword"],
   "content": "<article class=\"blog-article-body\"><section class=\"blog-section\"><p class=\"blog-paragraph\">Introduction text...</p></section><section class=\"blog-section\"><h2 class=\"blog-heading-2\" id=\"section-id\">Section Title</h2><p class=\"blog-paragraph\">Section explanation...</p><ul class=\"blog-list\"><li class=\"blog-list-item\"><strong>Key Point:</strong> Description...</li></ul></section></article>",
   "tableOfContents": [
     { "title": "Section Title", "id": "section-id" },
@@ -266,6 +267,18 @@ export function validateGeneratedArticle(article, expectedCategory) {
 
   if (!article.content || typeof article.content !== 'string') {
     throw new Error('Generated article content is invalid or missing');
+  }
+
+  if (!article.metaTitle || typeof article.metaTitle !== 'string') {
+    throw new Error('Generated article is missing a valid metaTitle');
+  }
+
+  if (!article.metaDescription || typeof article.metaDescription !== 'string') {
+    throw new Error('Generated article is missing a valid metaDescription');
+  }
+
+  if (!Array.isArray(article.keywords) || article.keywords.length === 0 || article.keywords.some((keyword) => typeof keyword !== 'string' || !keyword.trim())) {
+    throw new Error('Generated article is missing a valid keywords array');
   }
 
   // Ensure assigned category match
@@ -377,6 +390,7 @@ export async function generateAndPublishBlog() {
     title: article.title,
     slug: article.slug || BlogService.generateSlug(article.title),
     excerpt: article.excerpt,
+    metaTitle: article.metaTitle,
     metaDescription: article.metaDescription,
     keywords: article.keywords,
     content: article.content,

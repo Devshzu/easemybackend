@@ -25,6 +25,7 @@ export class BlogService {
       slug,
       category: data.category || 'Technology',
       excerpt: data.excerpt,
+      metaTitle: data.metaTitle,
       content: data.content,
       metaDescription: data.metaDescription,
       keywords: data.keywords,
