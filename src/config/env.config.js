@@ -15,7 +15,7 @@ export const config = {
     ? defaultPublicBaseUrl
     : publicBaseUrl.replace(/\/+$/, ''),
   nodeEnv,
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000' || "https://easemyweb.in" || "http://easemyweb.in",
+  corsOrigin: "https://easemyweb.in" || "http://easemyweb.in",
   db: {
     uri: process.env.DATABASE_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/easemyweb'
   },
