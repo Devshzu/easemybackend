@@ -29,6 +29,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.3.0",
     "node-cron": "^4.2.1",
+    "nodemailer": "^10.0.9",
     "rss-parser": "^3.13.0",
     "sharp": "^0.35.4",
     "zod": "^3.24.2"

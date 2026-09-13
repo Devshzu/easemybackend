@@ -23,6 +23,14 @@ export const config = {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 mins default
     max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10)
   },
+  frontendUrl: process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000',
+  smtp: {
+    host: process.env.SMTP_HOST || 'smtpout.secureserver.net',
+    port: parseInt(process.env.SMTP_PORT || '465', 10),
+    secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+    user: process.env.SMTP_USER || 'hello@easemyweb.in',
+    pass: process.env.SMTP_PASS || ''
+  },
   blogAutomation: {
     enabled: process.env.BLOG_AUTOMATION_ENABLED === 'true',
     cron: process.env.BLOG_AUTOMATION_CRON || '0 0,4,8,12,16,20 * * *',

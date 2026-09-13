@@ -1,5 +1,6 @@
 import { Blog } from './blog.model.js';
 import { logger } from '../../config/logger.js';
+import { BlogEmailNotificationService } from '../newsletter/blogEmailNotification.service.js';
 
 export class BlogService {
   /**
@@ -36,6 +37,15 @@ export class BlogService {
       image: data.image || 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&auto=format&fit=crop&q=80',
       published: data.published !== undefined ? data.published : true,
     });
+
+    // If published, trigger blog email notification
+    if (blog.published) {
+      try {
+        await BlogEmailNotificationService.triggerBlogNotification(blog);
+      } catch (err) {
+        logger.error(`Error triggering blog notification: ${err.message}`);
+      }
+    }
 
     return blog;
   }
@@ -108,13 +118,23 @@ export class BlogService {
       data.slug = this.generateSlug(data.title);
     }
 
+    const existingBlog = await Blog.findById(id).lean();
+    if (!existingBlog) {
+      throw new Error('Blog post not found');
+    }
+
     const updatedBlog = await Blog.findByIdAndUpdate(id, data, {
       new: true,
       runValidators: true,
     });
 
-    if (!updatedBlog) {
-      throw new Error('Blog post not found');
+    // Trigger notification ONLY IF transitioning from unpublished (false) to published (true)
+    if (!existingBlog.published && updatedBlog.published) {
+      try {
+        await BlogEmailNotificationService.triggerBlogNotification(updatedBlog);
+      } catch (err) {
+        logger.error(`Error triggering blog notification on publish: ${err.message}`);
+      }
     }
 
     return updatedBlog;
