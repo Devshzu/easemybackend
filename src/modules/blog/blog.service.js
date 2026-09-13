@@ -43,9 +43,44 @@ export class BlogService {
   /**
    * Get all blog posts (optionally filter by published state for public view)
    */
-  static async getAllBlogs(onlyPublished = false) {
+  static async getAllBlogs(onlyPublished = false, options = {}) {
+    const page = Math.max(Number.parseInt(options.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(Number.parseInt(options.limit, 10) || 9, 1), 50);
+    const search = typeof options.search === 'string' ? options.search.trim() : '';
+    const category = typeof options.category === 'string' ? options.category.trim() : '';
     const filter = onlyPublished ? { published: true } : {};
-    return await Blog.find(filter).sort({ createdAt: -1 });
+    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    if (search) {
+      filter.$or = [
+        { title: { $regex: escapedSearch, $options: 'i' } },
+        { excerpt: { $regex: escapedSearch, $options: 'i' } },
+        { content: { $regex: escapedSearch, $options: 'i' } },
+        { keywords: { $regex: escapedSearch, $options: 'i' } }
+      ];
+    }
+
+    if (category && category !== 'All') filter.category = category;
+
+    const [blogs, total] = await Promise.all([
+      Blog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Blog.countDocuments(filter)
+    ]);
+
+    return {
+      blogs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPreviousPage: page > 1
+      }
+    };
   }
 
   /**

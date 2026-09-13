@@ -9,8 +9,13 @@ export const createBlog = asyncHandler(async (req, res) => {
 
 export const getBlogs = asyncHandler(async (req, res) => {
   const isPublic = req.query.public === 'true';
-  const blogs = await BlogService.getAllBlogs(isPublic);
-  res.status(200).json(new ApiResponse(200, blogs, 'Blogs retrieved successfully'));
+  const result = await BlogService.getAllBlogs(isPublic, {
+    page: req.query.page,
+    limit: req.query.limit,
+    search: req.query.search,
+    category: req.query.category
+  });
+  res.status(200).json(new ApiResponse(200, result, 'Blogs retrieved successfully'));
 });
 
 export const getBlog = asyncHandler(async (req, res) => {
