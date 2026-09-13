@@ -1,5 +1,7 @@
 import { Contact } from './contact.model.js';
 import { logger } from '../../config/logger.js';
+import { mailService } from '../../utils/mailService.js';
+import { getContactConfirmationEmailHtml } from '../../utils/emailTemplates/contactConfirmation.template.js';
 
 export class ContactService {
   /**
@@ -18,6 +20,17 @@ export class ContactService {
       message: contactData.message,
       status: 'new',
     });
+
+    // Send confirmation email to client safely
+    if (contactDoc.email) {
+      try {
+        const html = getContactConfirmationEmailHtml(contactDoc);
+        const subject = '[EaseMyWeb] We Received Your Inquiry!';
+        await mailService.sendMail({ to: contactDoc.email, subject, html });
+      } catch (mailErr) {
+        logger.error(`Failed to send contact confirmation email to ${contactDoc.email}: ${mailErr.message}`);
+      }
+    }
 
     return {
       received: true,

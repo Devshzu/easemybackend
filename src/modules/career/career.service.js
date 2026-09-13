@@ -5,6 +5,8 @@ import { Job } from './job.model.js';
 import { JobApplication } from './jobApplication.model.js';
 import { CareerCMS } from './careerCMS.model.js';
 import { logger } from '../../config/logger.js';
+import { mailService } from '../../utils/mailService.js';
+import { getJobApplicationConfirmationEmailHtml } from '../../utils/emailTemplates/jobApplicationConfirmation.template.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -214,6 +216,17 @@ export class CareerService {
     });
 
     logger.info(`New application received for position: ${job.title} from ${applicationData.email}`);
+
+    // Send confirmation email to applicant safely
+    if (application.email) {
+      try {
+        const html = getJobApplicationConfirmationEmailHtml({ application, job });
+        const subject = `[EaseMyWeb Careers] Application Received - ${job.title}`;
+        await mailService.sendMail({ to: application.email, subject, html });
+      } catch (mailErr) {
+        logger.error(`Failed to send job application email to ${application.email}: ${mailErr.message}`);
+      }
+    }
 
     return {
       applicationId: application._id,
