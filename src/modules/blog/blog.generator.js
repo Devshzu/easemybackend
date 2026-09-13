@@ -135,7 +135,7 @@ async function requestGeminiGeneration(promptText) {
 
 function buildBlogPrompt(story, category) {
   return `You are the senior editorial content strategist and technology writer for EaseMyWeb.
-Your job is to transform a current/trending topic into a high-quality, useful, engaging, and beautifully structured article for a modern digital publication.
+Your job is to transform a current/trending topic into a high-quality, useful, engaging, deeply informative, and beautifully structured long-form article for a modern digital publication.
 
 ==================================================
 SOURCE INFORMATION
@@ -159,6 +159,13 @@ VOICE & STYLE:
 - Avoid cringe slang, clickbait, repetitive intros/conclusions, corporate buzzwords, generic AI intros ("In today's rapidly evolving world...", "In the ever-changing landscape...", "As we all know...", "Let's dive in...").
 
 ==================================================
+STRICT CONTENT LENGTH & DATA DEPTH REQUIREMENTS
+==================================================
+- MINIMUM WORD COUNT: 1000 WORDS. You MUST write a comprehensive long-form article of AT LEAST 1000 words (aim for 1000 to 2000+ words). NEVER generate short, brief, or shallow content!
+- HIGH DATA DENSITY & MULTIPLE POINTS: Each section must contain extensive details, multiple analytical points, technical or business context, step-by-step breakdowns, key takeaways, pros & cons, and real-world implications.
+- RELEVANT LISTS & TABLES: Incorporate unordered lists (<ul class="blog-list">) with rich bullet points and structured HTML comparison tables (<table class="blog-table">) where applicable. Do NOT omit data or use placeholder text.
+
+==================================================
 CATEGORY GUIDANCE
 ==================================================
 Assigned Category: ${category}
@@ -172,12 +179,19 @@ You MUST strictly align the article content with this category:
 - General: Broad current/trending stories. Explain what happened, why people should care, who is affected, what it means, and what may happen next.
 
 ==================================================
-NO INLINE TABLE OF CONTENTS IN CONTENT BODY
+TABLE OF CONTENTS & HEADINGS
 ==================================================
 CRITICAL REQUIREMENT:
-Do NOT embed a Table of Contents HTML block (<nav>) inside the "content" string!
+Do NOT embed an inline Table of Contents HTML block (<nav>) inside the "content" string!
 The website application automatically renders the Table of Contents in the right-hand sticky sidebar by reading your <h2> and <h3> section headings.
-Populate the separate "tableOfContents" JSON array with objects containing "title" and "id" matching your <h2> and <h3> section heading IDs.
+- Headings: Organise content logically into 4 to 7 major sections using <h2 class="blog-heading-2" id="..."> and subsections using <h3 class="blog-heading-3" id="...">.
+- Table of Contents Array: Populate the separate "tableOfContents" JSON array with objects containing "title" and "id" matching EVERY <h2> and <h3> section heading ID created in the content.
+
+==================================================
+FACTUAL ACCURACY & REFERENCES
+==================================================
+- References: Always populate the "references" JSON array. Include at least the source URL provided above and any other official references or documentation links. Format as objects with "title", "source", and "url".
+- Do NOT fabricate quotes, statistics, product specs, URLs, or fake facts.
 
 ==================================================
 RICH HTML STRUCTURE & CLASSNAME REQUIREMENTS
@@ -192,19 +206,11 @@ Required HTML Elements with CSS Classnames:
 4. Sub-Heading (H3): <h3 class="blog-heading-3" id="subheading-id">Sub-Section Title</h3>
 5. Paragraphs: <p class="blog-paragraph">Write short, punchy paragraphs (2-4 sentences max). Never create long wall-of-text blocks!</p>
 6. Unordered List: <ul class="blog-list">
-7. List Item: <li class="blog-list-item"><strong>Label:</strong> Detail text...</li>
+7. List Item: <li class="blog-list-item"><strong>Label:</strong> Detailed explanation and points...</li>
 8. ALWAYS put a short introductory <p class="blog-paragraph"> before starting a list. NEVER output plain unformatted text lines or pseudo-bullet points inside generic <p> tags.
 9. Blockquote: <blockquote class="blog-blockquote">Key takeaway quote or expert tip...</blockquote>
 10. Table: <table class="blog-table"><thead class="blog-thead"><tr class="blog-tr"><th class="blog-th">Header</th></tr></thead><tbody class="blog-tbody"><tr class="blog-tr"><td class="blog-td">Data</td></tr></tbody></table>
 11. Code Block: <pre class="blog-code-block"><code class="blog-code">...</code></pre>
-
-Word count: 700 to 1200 words.
-
-==================================================
-FACTUAL ACCURACY & REFERENCES
-==================================================
-Do NOT fabricate quotes, statistics, product specs, URLs, or fake facts.
-References MUST be returned in the separate JSON array. Use the supplied source URL as a reference. Never invent source URLs.
 
 ==================================================
 IMAGE GENERATION PROMPT
@@ -224,13 +230,13 @@ Return ONLY valid JSON matching this exact structure:
   "metaTitle": "SEO-optimized meta title under 60 characters",
   "metaDescription": "Concise SEO meta description",
   "keywords": ["primary SEO keyword", "secondary SEO keyword", "relevant long-tail keyword", "EaseMyWeb", "EaseMyWeb ${category}"],
-  "content": "<article class=\"blog-article-body\"><section class=\"blog-section\"><p class=\"blog-paragraph\">Introduction text...</p></section><section class=\"blog-section\"><h2 class=\"blog-heading-2\" id=\"section-id\">Section Title</h2><p class=\"blog-paragraph\">Section explanation...</p><ul class=\"blog-list\"><li class=\"blog-list-item\"><strong>Key Point:</strong> Description...</li></ul></section></article>",
+  "content": "<article class=\"blog-article-body\"><section class=\"blog-section\"><p class=\"blog-paragraph\">Introduction text...</p></section><section class=\"blog-section\"><h2 class=\"blog-heading-2\" id=\"section-id\">Section Title</h2><p class=\"blog-paragraph\">Detailed section explanation with high data density...</p><ul class=\"blog-list\"><li class=\"blog-list-item\"><strong>Point 1:</strong> Detailed explanation...</li><li class=\"blog-list-item\"><strong>Point 2:</strong> Detailed explanation...</li></ul></section></article>",
   "tableOfContents": [
     { "title": "Section Title", "id": "section-id" },
     { "title": "Another Section", "id": "another-section" }
   ],
   "category": "${category}",
-  "readTime": "6 min read",
+  "readTime": "8 min read",
   "references": [
     {
       "title": "${story.title.replace(/"/g, '\\"')}",
@@ -317,6 +323,13 @@ export function validateGeneratedArticle(article, expectedCategory) {
     throw new Error('Generated content contains an inline Table of Contents block inside content. TOC must only be in tableOfContents array.');
   }
 
+  // Ensure minimum word count length (validation threshold min 800 words to ensure >= 1000 word content)
+  const plainText = article.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const wordCount = plainText ? plainText.split(' ').length : 0;
+  if (wordCount < 800) {
+    throw new Error(`Generated article content is too short (${wordCount} words). Article must be at least 1000 words long.`);
+  }
+
   // Ensure tableOfContents array is valid
   if (!Array.isArray(article.tableOfContents) || article.tableOfContents.length === 0) {
     throw new Error('Generated article is missing tableOfContents array');
@@ -385,7 +398,7 @@ export async function generateAndPublishBlog() {
     article = validateGeneratedArticle(article, category);
   } catch (validationErr) {
     logger.warn(`Article validation failed on first try (${validationErr.message}). Retrying once...`);
-    const retryPrompt = `${buildBlogPrompt(story, category)}\n\nCRITICAL FIX: The previous generation failed validation with error: "${validationErr.message}". Fix this error completely. Do NOT include any inline Table of Contents block (<nav>) inside content. Format lists cleanly using <ul><li><strong>Label:</strong> Detail</li></ul>. Return ONLY valid JSON with clean HTML content, non-empty tableOfContents array, matching heading IDs, and ZERO Markdown formatting.`;
+    const retryPrompt = `${buildBlogPrompt(story, category)}\n\nCRITICAL FIX: The previous generation failed validation with error: "${validationErr.message}". Fix this error completely. Generate a comprehensive long-form article of AT LEAST 1000 words. Do NOT include any inline Table of Contents block (<nav>) inside content. Format lists cleanly using <ul><li><strong>Label:</strong> Detail</li></ul>. Return ONLY valid JSON with clean HTML content, non-empty tableOfContents array, matching heading IDs, and ZERO Markdown formatting.`;
     const retryRaw = await requestGeminiGeneration(retryPrompt);
     retryRaw.category = category;
     article = validateGeneratedArticle(retryRaw, category);
