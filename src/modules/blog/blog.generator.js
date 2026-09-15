@@ -24,14 +24,14 @@ export const BLOG_CATEGORIES = [
   'General'
 ];
 
-// 3. CATEGORY FEEDS
+// 3. CATEGORY FEEDS (VIRAL & POPULAR TRENDING TOPICS)
 const CATEGORY_FEEDS = {
-  'Technology': 'technology OR gadgets OR software',
-  'AI & Machine Learning': 'artificial intelligence OR generative AI OR machine learning',
-  'Career & Education': 'technology careers OR developer jobs OR education OR skills',
-  'Business & Digital Growth': 'startup OR SaaS OR ecommerce OR digital marketing',
-  'Programming & Web Development': 'JavaScript OR React OR Next.js OR Node.js OR web development',
-  'General': 'technology OR business OR education OR internet OR digital trends'
+  'Technology': 'viral technology OR breakout tech OR trending gadgets OR breakthrough software OR viral app OR future tech',
+  'AI & Machine Learning': 'viral AI OR trending artificial intelligence OR breakthrough AI model OR generative AI OR popular AI tools',
+  'Career & Education': 'trending tech careers OR developer jobs OR high paying tech skills OR tech career roadmap OR learning tech',
+  'Business & Digital Growth': 'viral startup growth OR SaaS breakout OR digital marketing trends OR ecommerce hacks OR business growth strategy',
+  'Programming & Web Development': 'trending web development OR viral developer tools OR React OR Next.js OR Node.js OR popular programming frameworks',
+  'General': 'viral tech news OR trending digital updates OR breakout technology OR popular web trends'
 };
 
 function normalizeTitle(title) {
@@ -228,8 +228,8 @@ async function requestGeminiGeneration(promptText, retries = 4) {
 }
 
 export function buildBlogPrompt(story, category) {
-  return `You are the senior editorial content strategist and technology writer for EaseMyWeb.
-Your job is to transform a current/trending topic into a high-quality, useful, engaging, deeply informative, and beautifully structured long-form article for a modern digital publication.
+  return `You are the chief viral content strategist and lead technology writer for EaseMyWeb.
+Your primary objective is to transform a current/trending topic into a POPULAR, HIGH-ATTRACTION, VISUALLY CAPTIVATING, and EXTREMELY INTERESTING long-form article that readers take real interest in and love reading from start to finish.
 
 ==================================================
 SOURCE INFORMATION
@@ -243,24 +243,24 @@ Summary/Snippet: ${story.contentSnippet || 'N/A'}
 ==================================================
 EDITORIAL OBJECTIVE & AUDIENCE
 ==================================================
-The article must feel written by an experienced human editor, NOT by an AI content generator.
-Audience includes Gen Z readers, students, developers, software engineers, technology professionals, entrepreneurs, business owners, digital creators, and everyday tech users.
+The article must feel like a top-tier viral editorial piece written by an engaging, passionate human tech writer — NEVER boring, dry, or robotic AI content.
+Audience includes Gen Z tech enthusiasts, students, software engineers, developers, entrepreneurs, business owners, digital creators, and everyday tech-curious readers.
 
 ==================================================
-TRENDING TOPIC & READER DEMAND GATE (CRITICAL)
+POPULAR TOPIC & READER ATTRACTION GATE (CRITICAL)
 ==================================================
-This publication prioritizes topics people are actively searching for, discussing, and sharing RIGHT NOW. Before writing, evaluate the supplied headline for genuine reader demand:
-- Prefer major breaking developments, widely discussed product launches, important updates to popular tools, meaningful AI model releases, platform changes, cybersecurity events, technology policy changes, and developments with clear user or business impact.
+This publication prioritizes topics people are actively searching for, discussing, and sharing RIGHT NOW. Before writing, spin the supplied headline into a high-attraction, popular article angle:
+- ARTICLE TITLE: Create a magnetic, popular, highly enticing title that instantly peaks reader curiosity (e.g., "Why Everyone is Talking About...", "The Hidden Truth Behind...", "How X is Silently Revolutionizing...", "What You Need to Know About..."). Keep it accurate to the source material without cheap clickbait. Include important product, tool, or tech names when central to the story.
+- Prefer major breaking developments, viral updates, widely discussed product launches, important updates to popular tools, meaningful AI model releases, platform changes, cybersecurity events, technology policy changes, and developments with clear user or business impact.
 - Do not use a fixed list of products, companies, or technologies as a trend signal. Identify what is genuinely popular at generation time from the current headline, publication date, source context, and broad reader interest. Mention a company or product only when it is genuinely supported by the supplied source.
-- Turn the topic into the specific question readers care about: What changed? Why is everyone talking about it? Who benefits or loses? What should users, developers, or businesses do next?
-- Reject weak angles such as minor routine announcements, generic evergreen explainers, vague predictions, recycled listicles, obscure tools with no demonstrated impact, and topics that are no longer timely.
-- Do not manufacture popularity, search volume, public reaction, quotes, statistics, or urgency. If the headline is not clearly high-interest, use the strongest timely and practical angle supported by the source rather than exaggerating it.
-- The article title must be specific, timely, and compelling without clickbait. Include the important product, company, feature, or event name when it is central to the story.
+- Turn the topic into the specific question readers care about: Why is everyone talking about this right now? What actually changed? Who benefits or loses? How can users, developers, or businesses leverage this?
+- Reject weak angles such as minor routine announcements, generic evergreen explainers, dry press release summaries, vague predictions, recycled listicles, obscure tools with no demonstrated impact, and topics that are no longer timely.
+- Do not manufacture popularity, search volume, public reaction, quotes, statistics, or urgency. If the headline is not clearly high-interest, uncover the most exciting, practical, and fascinating real-world angle supported by the source.
 
-VOICE & STYLE:
-- Modern, natural, human-like, conversational yet professional.
-- Clear, confident, informative, engaging, and highly practical.
-- Easy to scan with short paragraphs and clear headings.
+VOICE & STYLE (FUN, INTERESTING & HIGH ENGAGEMENT):
+- Energetic, highly engaging, storytelling-driven, human-centric, and conversational yet deeply smart.
+- Captivate the reader with punchy sentences, exciting subheadings, real-world human scenarios, and intriguing insights.
+- Easy to scan with short paragraphs (2-4 sentences max).
 - Avoid cringe slang, clickbait, repetitive intros/conclusions, corporate buzzwords, generic AI intros ("In today's rapidly evolving world...", "In the ever-changing landscape...", "As we all know...", "Let's dive in...").
 
 ==================================================
@@ -422,25 +422,27 @@ Required HTML Elements with CSS Classnames:
 12. Visual/diagram elements: use the VISUAL STRUCTURE ELEMENTS defined above (blog-callout, blog-stat-box, blog-flow, blog-timeline, blog-compare-grid, blog-key-takeaway, blog-faq) where they genuinely fit the topic.
 
 ==================================================
-IMAGE GENERATION PROMPT (HIGH-DEFINITION, RELATABLE & ULTRA-SHARP REQUIREMENT)
+IMAGE GENERATION PROMPT (CLEAR, CINEMATIC ANIMATED & PEOPLE-FOCUSED REQUIREMENT)
 ==================================================
-Create a highly specific, topic-relevant, and visually captivating image generation prompt for this article.
+Create a highly specific, topic-relevant visual image generation prompt for this article.
 CRITICAL VISUAL RULES:
-1. TOPIC RELEVANCE: The scene MUST directly depict the visual subject of the headline "${story.title}".
-   - For Career & Education / AI: depict a modern professional developer or student working in a sleek, bright tech office with crystal clear dual monitors, focused expression, high-tech workspace setting.
-   - For Tech / Programming: depict sharp, high-contrast modern developer environment with clean IDE code displayed on high-res monitors, professional lighting.
-   - For Business / Growth: depict crisp modern tech team in a bright modern glass room with data visualization screen.
-2. ULTRA-SHARP CLARITY & HD 4K-8K: Prompt MUST mandate 8k resolution, razor-sharp focus, crisp fine details, high-definition photorealistic 35mm editorial photography, cinematic studio lighting, vivid natural colors, clean high-contrast composition.
-3. ABSOLUTELY NO BLUR OR SILHOUETTES: Zero blur, zero motion blur, no dark silhouettes, no out-of-focus background faces, no low resolution, no dark murky lighting.
-4. NO TEXT OR LOGOS: Zero rendered words, letters, text overlays, logos, or watermarks.
-5. COMPOSITION: 16:9 landscape aspect ratio with sharp foreground focus and clean, relatable environment.
+1. ART STYLE: Modern 3D/2.5D vibrant cinematic animated illustration style (high-end animated movie visual quality, Pixar/DreamWorks style digital artwork).
+2. PEOPLE & CHARACTERS: MUST feature clear, attractive, expressive human characters / people (such as modern developers, students, tech creators, young professionals, business founders) actively working, collaborating, or engaging with modern tech, screens, laptops, interfaces, or futuristic tools.
+3. TOPIC RELEVANCE: The scene MUST directly illustrate the core story "${story.title}".
+   - For Technology / Programming: depict an enthusiastic developer character in a vibrant animated desk setup with glowing dual screens showing sleek code.
+   - For AI & ML: depict a young innovator character collaborating with a friendly animated AI holographic display or digital assistant.
+   - For Business & Career: depict dynamic animated team members celebrating a milestone or analyzing colorful digital charts in a modern bright glass workspace.
+4. ULTRA-SHARP CLARITY & HD DETAILS: Mandate razor-sharp focus, crystal clear 8k resolution, crisp line edges, rich vibrant colors, warm cinematic studio volumetric lighting, glossy 3D textures.
+5. ABSOLUTELY NO BLUR OR DARK SILHOUETTES: Zero background blur, zero face blur, no dark murky silhouettes, no dull lighting, no low quality.
+6. NO TEXT OR LOGOS: Zero rendered letters, words, logos, or watermarks.
+7. COMPOSITION: 16:9 landscape aspect ratio with clear foreground characters and detailed animated environment.
 
 ==================================================
 OUTPUT JSON FORMAT
 ==================================================
 Return ONLY valid JSON matching this exact structure:
 {
-  "title": "Specific Editorial Article Title",
+  "title": "Popular Editorial Article Title",
   "slug": "url-friendly-slug",
   "excerpt": "Short compelling excerpt summary (2-3 sentences)",
   "metaTitle": "SEO-optimized meta title under 60 characters",
@@ -460,7 +462,7 @@ Return ONLY valid JSON matching this exact structure:
       "url": "${story.link}"
     }
   ],
-  "imagePrompt": "Detailed topic-specific editorial image prompt..."
+  "imagePrompt": "Detailed topic-specific 3D cinematic animated image prompt featuring clear expressive human characters in a modern tech setting..."
 }`;
 }
 
@@ -564,8 +566,8 @@ export function validateGeneratedArticle(article, expectedCategory) {
 
 // 19. IMAGE SAVING WITH TOPIC-SPECIFIC PROMPT & HD FLUX GENERATION
 export async function saveImage(imagePrompt, retries = 3) {
-  // Enhance prompt for maximum sharpness, 8k detail, cinematic lighting, and clarity
-  const enhancedPrompt = `${imagePrompt}, ultra sharp focus, razor sharp details, 8k resolution, photorealistic, cinematic photography, studio lighting, highly relatable, 4k ultra-high-definition, clear depth of field, sharp foreground features, masterpiece`;
+  // Enhance prompt for clear, cinematic 3D animation style featuring relatable people/characters, 8k detail, vivid colors, and crystal sharpness
+  const enhancedPrompt = `${imagePrompt}, vibrant 3D cinematic animated illustration style, relatable expressive human characters, ultra sharp focus, crisp details, 8k resolution, cinematic volumetric studio lighting, rich vivid colors, glossy 3D render, 4k ultra-high-definition, clear depth, sharp foreground features, masterpiece`;
   
   const baseUrl = config.blogAutomation.imageBaseUrl.replace(/\/+$/, '');
 
