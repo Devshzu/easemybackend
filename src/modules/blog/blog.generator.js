@@ -7,6 +7,7 @@ import { Blog } from './blog.model.js';
 import { BlogService } from './blog.service.js';
 import { config } from '../../config/env.config.js';
 import { logger } from '../../config/logger.js';
+import { acquireBlogGenerationLock, releaseBlogGenerationLock } from './blog.generation-lock.js';
 
 const parser = new Parser();
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -144,16 +145,36 @@ export async function getTrendingStory(category) {
 }
 
 // 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 22, 23. MAIN AI BLOG GENERATION
-async function requestGeminiGeneration(promptText, retries = 4) {
-  if (!config.blogAutomation.geminiKey) throw new Error('GEMINI_KEY is not configured');
+let nextGeminiKeyIndex = 0;
 
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
+export function getNextGeminiKey(keys = config.blogAutomation.geminiKeys) {
+  if (!keys.length) return '';
+  const key = keys[nextGeminiKeyIndex % keys.length];
+  nextGeminiKeyIndex = (nextGeminiKeyIndex + 1) % keys.length;
+  return key;
+}
+
+async function requestGeminiGeneration(promptText, retries = 4) {
+  const keys = config.blogAutomation.geminiKeys.length
+    ? config.blogAutomation.geminiKeys
+    : (config.blogAutomation.geminiKey ? [config.blogAutomation.geminiKey] : []);
+  if (!keys.length) throw new Error('GEMINI_KEY or GEMINI_KEYS is not configured');
+
+  const firstKeyIndex = nextGeminiKeyIndex % keys.length;
+  const orderedKeyIndexes = keys.map((_, offset) => (firstKeyIndex + offset) % keys.length);
+  nextGeminiKeyIndex = (firstKeyIndex + 1) % keys.length;
+
+  for (const keyIndex of orderedKeyIndexes) {
+    const geminiKey = keys[keyIndex];
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${config.blogAutomation.geminiModel}:generateContent?key=${config.blogAutomation.geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${config.blogAutomation.geminiModel}:generateContent?key=${geminiKey}`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
+          signal: AbortSignal.timeout(config.blogAutomation.geminiRequestTimeoutMs),
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: promptText }] }],
             generationConfig: {
@@ -170,12 +191,9 @@ async function requestGeminiGeneration(promptText, retries = 4) {
 
         if (isDailyQuotaExceeded) {
           const quotaError = new Error(
-            `Gemini API daily quota is exhausted for model ${config.blogAutomation.geminiModel}. ` +
-            'A Gemini web subscription does not automatically include Gemini API quota. Enable billing or use an API key from a project with API billing enabled. ' +
-            'See https://ai.google.dev/gemini-api/docs/billing. ' +
-            `Original response: ${errorBody}`
+            `Gemini API quota is exhausted for key ${keyIndex + 1}/${keys.length}.`
           );
-          quotaError.retryable = false;
+          quotaError.rotateKey = true;
           throw quotaError;
         }
 
@@ -195,11 +213,18 @@ async function requestGeminiGeneration(promptText, retries = 4) {
       const cleanedText = rawText.replace(/^```json\s*|\s*```$/g, '').trim();
       return JSON.parse(cleanedText);
     } catch (err) {
-      if (err.retryable === false || attempt === retries) throw err;
-      logger.warn(`Gemini generation request error (attempt ${attempt}/${retries}): ${err.message}. Retrying...`);
-      await new Promise((res) => setTimeout(res, attempt * 3000));
+        if (err.rotateKey) {
+          logger.warn(`Gemini key ${keyIndex + 1}/${keys.length} quota exhausted. Trying the next key.`);
+          break;
+        }
+        if (err.retryable === false || attempt === retries) throw err;
+        logger.warn(`Gemini generation request error (attempt ${attempt}/${retries}): ${err.message}. Retrying...`);
+        await new Promise((res) => setTimeout(res, attempt * 3000));
+      }
     }
   }
+
+  throw new Error(`All ${keys.length} configured Gemini API keys have exhausted their quota.`);
 }
 
 export function buildBlogPrompt(story, category) {
@@ -552,7 +577,9 @@ export async function saveImage(imagePrompt, retries = 3) {
       const modelParam = attempt === 1 ? '&model=flux' : '&model=turbo';
       const imageUrl = `${baseUrl}/${encodeURIComponent(enhancedPrompt)}?width=1600&height=900&nologo=true${modelParam}`;
 
-      const response = await fetch(imageUrl);
+      const response = await fetch(imageUrl, {
+        signal: AbortSignal.timeout(config.blogAutomation.imageRequestTimeoutMs)
+      });
       if (!response.ok) {
         throw new Error(`Image provider returned HTTP ${response.status}`);
       }
@@ -578,41 +605,48 @@ export async function saveImage(imagePrompt, retries = 3) {
 
 // 20 & 21. COMPLETE PUBLISH FLOW & DUPLICATE PROTECTION
 export async function generateAndPublishBlog() {
-  const category = await getNextCategory();
-  logger.info(`Starting automated blog generation for category: ${category}`);
-
-  const story = await getTrendingStory(category);
-  logger.info(`Selected trending topic for [${category}]: "${story.title}"`);
-
-  // Check duplicate article based on title or slug
-  const normalizedTitle = story.title.trim().toLowerCase();
-  const existingBlog = await Blog.findOne({
-    $or: [
-      { title: story.title },
-      { title: { $regex: new RegExp(`^${normalizedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
-    ]
-  }).select('_id title').lean();
-
-  if (existingBlog) {
-    logger.info(`Skipping duplicate automated blog topic: "${story.title}"`);
-    return existingBlog;
+  const lockOwner = await acquireBlogGenerationLock();
+  if (!lockOwner) {
+    logger.info('Skipping automated blog generation because another worker holds the generation lock');
+    return null;
   }
 
-  let article;
   try {
-    article = await generateArticle(story, category);
-    article = validateGeneratedArticle(article, category);
-  } catch (validationErr) {
-    logger.warn(`Article validation failed on first try (${validationErr.message}). Retrying once...`);
-    const retryPrompt = `${buildBlogPrompt(story, category)}\n\nCRITICAL FIX: The previous generation failed validation with error: "${validationErr.message}". Fix this error completely. Generate a comprehensive long-form article of AT LEAST 1000 words. Do NOT include any inline Table of Contents block (<nav>) inside content. Format lists cleanly using <ul><li><strong>Label:</strong> Detail</li></ul>. Return ONLY valid JSON with clean HTML content, non-empty tableOfContents array, matching heading IDs, and ZERO Markdown formatting.`;
-    const retryRaw = await requestGeminiGeneration(retryPrompt);
-    retryRaw.category = category;
-    article = validateGeneratedArticle(retryRaw, category);
-  }
+    const category = await getNextCategory();
+    logger.info(`Starting automated blog generation for category: ${category}`);
 
-  const image = await saveImage(article.imagePrompt);
+    const story = await getTrendingStory(category);
+    logger.info(`Selected trending topic for [${category}]: "${story.title}"`);
 
-  const blog = await BlogService.createBlog({
+    // Check duplicate article based on title or slug
+    const normalizedTitle = story.title.trim().toLowerCase();
+    const existingBlog = await Blog.findOne({
+      $or: [
+        { title: story.title },
+        { title: { $regex: new RegExp(`^${normalizedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+      ]
+    }).select('_id title').lean();
+
+    if (existingBlog) {
+      logger.info(`Skipping duplicate automated blog topic: "${story.title}"`);
+      return existingBlog;
+    }
+
+    let article;
+    try {
+      article = await generateArticle(story, category);
+      article = validateGeneratedArticle(article, category);
+    } catch (validationErr) {
+      logger.warn(`Article validation failed on first try (${validationErr.message}). Retrying once...`);
+      const retryPrompt = `${buildBlogPrompt(story, category)}\n\nCRITICAL FIX: The previous generation failed validation with error: "${validationErr.message}". Fix this error completely. Generate a comprehensive long-form article of AT LEAST 1000 words. Do NOT include any inline Table of Contents block (<nav>) inside content. Format lists cleanly using <ul><li><strong>Label:</strong> Detail</li></ul>. Return ONLY valid JSON with clean HTML content, non-empty tableOfContents array, matching heading IDs, and ZERO Markdown formatting.`;
+      const retryRaw = await requestGeminiGeneration(retryPrompt);
+      retryRaw.category = category;
+      article = validateGeneratedArticle(retryRaw, category);
+    }
+
+    const image = await saveImage(article.imagePrompt);
+
+    const blog = await BlogService.createBlog({
     title: article.title,
     slug: article.slug || BlogService.generateSlug(article.title),
     excerpt: article.excerpt,
@@ -627,10 +661,13 @@ export async function generateAndPublishBlog() {
     image,
     author: 'EaseMyWeb Editorial AI',
     published: true
-  });
+    });
 
-  logger.info(`Successfully published automated blog [${category}]: "${blog.title}" (${blog.slug})`);
-  return blog;
+    logger.info(`Successfully published automated blog [${category}]: "${blog.title}" (${blog.slug})`);
+    return blog;
+  } finally {
+    await releaseBlogGenerationLock(lockOwner);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url) && !process.argv.includes('--help')) {

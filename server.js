@@ -4,6 +4,7 @@ import { logger } from './src/config/logger.js';
 import { connectDB, disconnectDB } from './src/config/db.js';
 import { startBlogScheduler } from './src/modules/blog/blog.scheduler.js';
 import { startSitemapScheduler } from './src/modules/sitemap/sitemap.scheduler.js';
+import { stopBlogQueue } from './src/modules/blog/blog.queue.js';
 
 // Connect to Database
 connectDB();
@@ -20,6 +21,7 @@ const server = app.listen(config.port, () => {
 process.on('unhandledRejection', (err) => {
   logger.error('UNHANDLED REJECTION! 💥 Shutting down...', err);
   server.close(async () => {
+    await stopBlogQueue();
     await disconnectDB();
     process.exit(1);
   });
@@ -35,6 +37,7 @@ process.on('uncaughtException', (err) => {
 process.on('SIGTERM', async () => {
   logger.info('👋 SIGTERM received. Shutting down gracefully...');
   await disconnectDB();
+  await stopBlogQueue();
   server.close(() => {
     logger.info('💥 Process terminated!');
   });

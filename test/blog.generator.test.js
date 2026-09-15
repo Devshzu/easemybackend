@@ -1,8 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildBlogPrompt, selectTrendingStory } from '../src/modules/blog/blog.generator.js';
+import { buildBlogPrompt, getNextGeminiKey, selectTrendingStory } from '../src/modules/blog/blog.generator.js';
 
 const now = new Date('2026-09-15T12:00:00.000Z');
+
+test('getNextGeminiKey rotates through configured keys', () => {
+  const keys = ['key-a', 'key-b', 'key-c'];
+  assert.equal(getNextGeminiKey(keys), 'key-a');
+  assert.equal(getNextGeminiKey(keys), 'key-b');
+  assert.equal(getNextGeminiKey(keys), 'key-c');
+  assert.equal(getNextGeminiKey(keys), 'key-a');
+});
 
 test('buildBlogPrompt includes the reader-demand trend gate', () => {
   const prompt = buildBlogPrompt({
