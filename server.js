@@ -3,13 +3,11 @@ import { config } from './src/config/env.config.js';
 import { logger } from './src/config/logger.js';
 import { connectDB, disconnectDB } from './src/config/db.js';
 import { startBlogScheduler } from './src/modules/blog/blog.scheduler.js';
-import { startSitemapScheduler } from './src/modules/sitemap/sitemap.scheduler.js';
 import { stopBlogQueue } from './src/modules/blog/blog.queue.js';
 
 // Connect to Database
 connectDB();
 startBlogScheduler();
-startSitemapScheduler();
 
 const server = app.listen(config.port, () => {
   logger.info(`🚀 EaseMyWeb Backend Server running in [${config.nodeEnv}] mode on port ${config.port}`);
