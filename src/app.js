@@ -14,6 +14,9 @@ import { errorHandler } from './middlewares/errorHandler.middleware.js';
 const app = express();
 const backendRoot = path.dirname(fileURLToPath(import.meta.url));
 
+// Nginx forwards the original client IP in X-Forwarded-For.
+app.set('trust proxy', 1);
+
 app.use('/blog', express.static(path.resolve(backendRoot, '../public/blog')));
 
 // Security Middlewares
