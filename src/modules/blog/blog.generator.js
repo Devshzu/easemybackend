@@ -33,6 +33,51 @@ const CATEGORY_FEEDS = {
   'General': 'technology OR business OR education OR internet OR digital trends'
 };
 
+function normalizeTitle(title) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+export function selectTrendingStory(stories, existingTitles = [], now = new Date(), maxAgeDays = 7) {
+  const nowMs = now.getTime();
+  const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000;
+  const existingTitlesLower = new Set(existingTitles.map(normalizeTitle));
+
+  const candidates = stories
+    .map((story, index) => {
+      const publishedAt = new Date(story.pubDate || story.isoDate || 0);
+      const ageMs = nowMs - publishedAt.getTime();
+      return {
+        story,
+        index,
+        ageMs,
+        publishedAt
+      };
+    })
+    .filter(({ story, ageMs, publishedAt }) => (
+      story.title && story.link &&
+      Number.isFinite(publishedAt.getTime()) &&
+      ageMs >= 0 && ageMs <= maxAgeMs &&
+      !existingTitlesLower.has(normalizeTitle(story.title))
+    ));
+
+  if (!candidates.length) return null;
+
+  // Balance Google's relevance signal with freshness so old popular stories do not win.
+  candidates.sort((left, right) => {
+    const leftScore = (100 - left.index * 10) * 0.6 + (1 - left.ageMs / maxAgeMs) * 100 * 0.4;
+    const rightScore = (100 - right.index * 10) * 0.6 + (1 - right.ageMs / maxAgeMs) * 100 * 0.4;
+    return rightScore - leftScore;
+  });
+
+  const selected = candidates[0].story;
+  return {
+    title: selected.title,
+    link: selected.link,
+    pubDate: selected.pubDate || selected.isoDate,
+    contentSnippet: selected.contentSnippet || selected.content || ''
+  };
+}
+
 // 2. CATEGORY ROTATION
 export async function getNextCategory() {
   let index = 0;
@@ -67,7 +112,8 @@ export async function getNextCategory() {
 // 3. TRENDING TOPIC SELECTION & DUPLICATE PREVENTION
 export async function getTrendingStory(category) {
   const query = CATEGORY_FEEDS[category] || CATEGORY_FEEDS.General;
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
+  const maxAgeDays = config.blogAutomation.trendingMaxAgeDays;
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(`${query} when:${maxAgeDays}d`)}&hl=en-IN&gl=IN&ceid=IN:en`;
 
   const feed = await parser.parseURL(url);
   const stories = (feed.items || []).filter((item) => item.title && item.link);
@@ -83,22 +129,18 @@ export async function getTrendingStory(category) {
   } catch (err) {
     logger.warn(`Could not fetch existing blogs for duplicate check: ${err.message}`);
   }
-  const existingTitlesLower = new Set(recentBlogs.map((b) => (b.title || '').toLowerCase()));
+  const selected = selectTrendingStory(
+    stories,
+    recentBlogs.map((blog) => blog.title || ''),
+    new Date(),
+    maxAgeDays
+  );
 
-  // Filter out recent duplicate topics if possible
-  const freshStories = stories.filter((s) => !existingTitlesLower.has(s.title.toLowerCase()));
-  const candidatePool = freshStories.length > 0 ? freshStories : stories;
+  if (!selected) {
+    throw new Error(`No recent, unused trending stories found for category: ${category}`);
+  }
 
-  // Select randomly from top 10 candidates to avoid always selecting item 0
-  const poolSlice = candidatePool.slice(0, Math.min(candidatePool.length, 10));
-  const selected = poolSlice[Math.floor(Math.random() * poolSlice.length)];
-
-  return {
-    title: selected.title,
-    link: selected.link,
-    pubDate: selected.pubDate || selected.isoDate || new Date().toISOString(),
-    contentSnippet: selected.contentSnippet || selected.content || ''
-  };
+  return selected;
 }
 
 // 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 22, 23. MAIN AI BLOG GENERATION
@@ -124,9 +166,22 @@ async function requestGeminiGeneration(promptText, retries = 4) {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        if ((response.status === 503 || response.status === 429 || response.status >= 500) && attempt < retries) {
+        const isDailyQuotaExceeded = response.status === 429 && /GenerateRequestsPerDayPerProject|daily quota|quota exceeded/i.test(errorBody);
+
+        if (isDailyQuotaExceeded) {
+          const quotaError = new Error(
+            `Gemini API daily quota is exhausted for model ${config.blogAutomation.geminiModel}. ` +
+            'A Gemini web subscription does not automatically include Gemini API quota. Enable billing or use an API key from a project with API billing enabled. ' +
+            'See https://ai.google.dev/gemini-api/docs/billing. ' +
+            `Original response: ${errorBody}`
+          );
+          quotaError.retryable = false;
+          throw quotaError;
+        }
+
+        if ((response.status === 503 || response.status >= 500 || response.status === 429) && attempt < retries) {
           const delayMs = attempt * 3000;
-          logger.warn(`Gemini API returned ${response.status} (High demand/service busy). Retrying attempt ${attempt}/${retries} in ${delayMs / 1000}s...`);
+          logger.warn(`Gemini API returned ${response.status} (temporary service/rate limit). Retrying attempt ${attempt}/${retries} in ${delayMs / 1000}s...`);
           await new Promise((res) => setTimeout(res, delayMs));
           continue;
         }
@@ -140,14 +195,14 @@ async function requestGeminiGeneration(promptText, retries = 4) {
       const cleanedText = rawText.replace(/^```json\s*|\s*```$/g, '').trim();
       return JSON.parse(cleanedText);
     } catch (err) {
-      if (attempt === retries) throw err;
+      if (err.retryable === false || attempt === retries) throw err;
       logger.warn(`Gemini generation request error (attempt ${attempt}/${retries}): ${err.message}. Retrying...`);
       await new Promise((res) => setTimeout(res, attempt * 3000));
     }
   }
 }
 
-function buildBlogPrompt(story, category) {
+export function buildBlogPrompt(story, category) {
   return `You are the senior editorial content strategist and technology writer for EaseMyWeb.
 Your job is to transform a current/trending topic into a high-quality, useful, engaging, deeply informative, and beautifully structured long-form article for a modern digital publication.
 
@@ -166,11 +221,32 @@ EDITORIAL OBJECTIVE & AUDIENCE
 The article must feel written by an experienced human editor, NOT by an AI content generator.
 Audience includes Gen Z readers, students, developers, software engineers, technology professionals, entrepreneurs, business owners, digital creators, and everyday tech users.
 
+==================================================
+TRENDING TOPIC & READER DEMAND GATE (CRITICAL)
+==================================================
+This publication prioritizes topics people are actively searching for, discussing, and sharing RIGHT NOW. Before writing, evaluate the supplied headline for genuine reader demand:
+- Prefer major breaking developments, widely discussed product launches, important updates to popular tools, meaningful AI model releases, platform changes, cybersecurity events, technology policy changes, and developments with clear user or business impact.
+- Do not use a fixed list of products, companies, or technologies as a trend signal. Identify what is genuinely popular at generation time from the current headline, publication date, source context, and broad reader interest. Mention a company or product only when it is genuinely supported by the supplied source.
+- Turn the topic into the specific question readers care about: What changed? Why is everyone talking about it? Who benefits or loses? What should users, developers, or businesses do next?
+- Reject weak angles such as minor routine announcements, generic evergreen explainers, vague predictions, recycled listicles, obscure tools with no demonstrated impact, and topics that are no longer timely.
+- Do not manufacture popularity, search volume, public reaction, quotes, statistics, or urgency. If the headline is not clearly high-interest, use the strongest timely and practical angle supported by the source rather than exaggerating it.
+- The article title must be specific, timely, and compelling without clickbait. Include the important product, company, feature, or event name when it is central to the story.
+
 VOICE & STYLE:
 - Modern, natural, human-like, conversational yet professional.
 - Clear, confident, informative, engaging, and highly practical.
 - Easy to scan with short paragraphs and clear headings.
 - Avoid cringe slang, clickbait, repetitive intros/conclusions, corporate buzzwords, generic AI intros ("In today's rapidly evolving world...", "In the ever-changing landscape...", "As we all know...", "Let's dive in...").
+
+==================================================
+READER ACTION & EASEMYWEB CONNECTION
+==================================================
+Make the article useful enough that a reader can imagine applying the idea to their own business, product, workflow, or career:
+- Explain at least one realistic next step, implementation path, website opportunity, workflow improvement, or custom software use case when the topic supports it.
+- Near the conclusion, include one natural, topic-specific paragraph explaining that EaseMyWeb can help readers turn the opportunity into a polished website, web application, mobile experience, API integration, or custom software solution.
+- The invitation must connect directly to the article's subject and reader problem. Make it helpful and consultative, not pushy: no fake discounts, unsupported claims, exaggerated promises, or generic "contact us today" advertising.
+- Mention EaseMyWeb no more than once in the article body outside the required keywords and references. Do not insert a sales pitch into the opening hook or unrelated sections.
+- End with a clear practical takeaway and a low-pressure next step for readers who want expert help planning or building the solution.
 
 HOOK REQUIREMENT (CRITICAL):
 - Open the article with a genuine "wait, what?" hook rooted in a real, verifiable fact from the source material — a surprising number, an underappreciated mechanism, or a "here's what's actually happening behind this" angle.

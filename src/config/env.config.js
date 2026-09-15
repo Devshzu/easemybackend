@@ -34,6 +34,7 @@ export const config = {
   blogAutomation: {
     enabled: process.env.BLOG_AUTOMATION_ENABLED === 'true',
     cron: process.env.BLOG_AUTOMATION_CRON || '0 0,4,8,12,16,20 * * *',
+    trendingMaxAgeDays: parseInt(process.env.BLOG_TRENDING_MAX_AGE_DAYS || '7', 10),
     geminiKey: process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '',
     geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
     imageBaseUrl: process.env.IMAGE_GENERATION_URL || 'https://image.pollinations.ai/prompt/'
