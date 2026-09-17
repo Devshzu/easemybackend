@@ -56,7 +56,9 @@ export const config = {
     geminiKeys,
     geminiKey: geminiKeys[0] || '',
     geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-    imageBaseUrl: process.env.IMAGE_GENERATION_URL || 'https://image.pollinations.ai/prompt/'
+    imageBaseUrl: process.env.IMAGE_GENERATION_URL || 'https://image.pollinations.ai/prompt/',
+    openaiApiKey: process.env.OPENAI_API_KEY || '',
+    openaiImageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst',
   }
 };
 

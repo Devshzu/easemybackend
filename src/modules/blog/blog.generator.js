@@ -8,6 +8,8 @@ import { BlogService } from './blog.service.js';
 import { config } from '../../config/env.config.js';
 import { logger } from '../../config/logger.js';
 import { acquireBlogGenerationLock, releaseBlogGenerationLock } from './blog.generation-lock.js';
+import { generateLinkedInPostFromBlog } from '../social/social.generator.js';
+import { generateGeminiImageBuffer } from '../../utils/geminiImage.js';
 
 const parser = new Parser();
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -564,42 +566,79 @@ export function validateGeneratedArticle(article, expectedCategory) {
   return article;
 }
 
-// 19. IMAGE SAVING WITH TOPIC-SPECIFIC PROMPT & HD FLUX GENERATION
-export async function saveImage(imagePrompt, retries = 3) {
-  // Enhance prompt for clear, cinematic 3D animation style featuring relatable people/characters, 8k detail, vivid colors, and crystal sharpness
-  const enhancedPrompt = `${imagePrompt}, vibrant 3D cinematic animated illustration style, relatable expressive human characters, ultra sharp focus, crisp details, 8k resolution, cinematic volumetric studio lighting, rich vivid colors, glossy 3D render, 4k ultra-high-definition, clear depth, sharp foreground features, masterpiece`;
-  
-  const baseUrl = config.blogAutomation.imageBaseUrl.replace(/\/+$/, '');
+const logoPath = path.resolve(moduleDir, '../../../public/newlogo.png');
 
-  logger.info(`Generating HD blog image with prompt: "${enhancedPrompt.slice(0, 120)}..."`);
-  
+async function overlayLogoOnBuffer(imageBuffer, width = 1600, height = 900) {
+  try {
+    const logoBuffer = await fs.readFile(logoPath);
+    const logoWidth = Math.round(width * 0.18);
+    const resizedLogo = await sharp(logoBuffer)
+      .resize({ width: logoWidth, fit: 'contain' })
+      .toBuffer();
+
+    return await sharp(imageBuffer)
+      .resize(width, height, { fit: 'cover' })
+      .composite([
+        {
+          input: resizedLogo,
+          top: 30,
+          left: 35,
+        },
+      ])
+      .webp({ quality: 92 })
+      .toBuffer();
+  } catch (err) {
+    logger.warn(`Could not composite EaseMyWeb logo onto blog image: ${err.message}`);
+    return await sharp(imageBuffer)
+      .resize(width, height, { fit: 'cover' })
+      .webp({ quality: 90 })
+      .toBuffer();
+  }
+}
+
+export async function saveImage(imagePrompt, retries = 3) {
+  const enhancedPrompt = `${imagePrompt}, professional corporate tech editorial feature artwork, modern 3D vector illustration, clean typography layout, 1600x900 landscape ratio, ultra sharp focus, crisp details, 8k resolution, cinematic volumetric studio lighting, rich vivid colors, glossy 3D render, 4k ultra-high-definition`;
+
+  logger.info(`Generating HD blog image with Gemini AI Imagen API prompt: "${enhancedPrompt.slice(0, 120)}..."`);
+
+  await fs.mkdir(publicBlogDir, { recursive: true });
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
+  const targetPath = path.join(publicBlogDir, filename);
+
+  // 1. Try Gemini AI Imagen API first (using Gemini API Key)
+  try {
+    const rawBuffer = await generateGeminiImageBuffer(enhancedPrompt, '16:9');
+    const finalBuffer = await overlayLogoOnBuffer(rawBuffer, 1600, 900);
+    await fs.writeFile(targetPath, finalBuffer);
+
+    logger.info(`Blog image generated successfully with Gemini AI & EaseMyWeb logo overlay: ${filename}`);
+    return `${config.publicBaseUrl}/blog/${filename}`;
+  } catch (geminiImgErr) {
+    logger.warn(`Gemini AI image generation failed (${geminiImgErr.message}). Falling back to primary image provider...`);
+  }
+
+  // 2. Fallback provider
+  const baseUrl = config.blogAutomation.imageBaseUrl.replace(/\/+$/, '');
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // Use flux model on attempt 1, fallback to turbo model on retries for maximum reliability
       const modelParam = attempt === 1 ? '&model=flux' : '&model=turbo';
       const imageUrl = `${baseUrl}/${encodeURIComponent(enhancedPrompt)}?width=1600&height=900&nologo=true${modelParam}`;
 
       const response = await fetch(imageUrl, {
-        signal: AbortSignal.timeout(config.blogAutomation.imageRequestTimeoutMs)
+        signal: AbortSignal.timeout(config.blogAutomation.imageRequestTimeoutMs),
       });
       if (!response.ok) {
         throw new Error(`Image provider returned HTTP ${response.status}`);
       }
 
       const imageBuffer = Buffer.from(await response.arrayBuffer());
-      await fs.mkdir(publicBlogDir, { recursive: true });
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
-      const targetPath = path.join(publicBlogDir, filename);
-
-      await sharp(imageBuffer)
-        .resize(1600, 900, { fit: 'cover' })
-        .webp({ quality: 92 })
-        .toFile(targetPath);
+      const finalBuffer = await overlayLogoOnBuffer(imageBuffer, 1600, 900);
+      await fs.writeFile(targetPath, finalBuffer);
 
       return `${config.publicBaseUrl}/blog/${filename}`;
     } catch (err) {
       if (attempt === retries) throw err;
-      logger.warn(`Image generation attempt ${attempt}/${retries} failed: ${err.message}. Retrying...`);
+      logger.warn(`Fallback image generation attempt ${attempt}/${retries} failed: ${err.message}. Retrying...`);
       await new Promise((res) => setTimeout(res, 2000));
     }
   }
@@ -666,6 +705,14 @@ export async function generateAndPublishBlog() {
     });
 
     logger.info(`Successfully published automated blog [${category}]: "${blog.title}" (${blog.slug})`);
+
+    try {
+      logger.info(`Starting automated LinkedIn post generation for blog: "${blog.title}"`);
+      await generateLinkedInPostFromBlog(blog);
+    } catch (linkedInErr) {
+      logger.error(`Automated LinkedIn post generation encountered an error for blog "${blog.title}"`, linkedInErr);
+    }
+
     return blog;
   } finally {
     await releaseBlogGenerationLock(lockOwner);
