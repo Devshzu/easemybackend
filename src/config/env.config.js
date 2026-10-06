@@ -59,6 +59,16 @@ export const config = {
     imageBaseUrl: process.env.IMAGE_GENERATION_URL || 'https://image.pollinations.ai/prompt/',
     openaiApiKey: process.env.OPENAI_API_KEY || '',
     openaiImageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst',
+  },
+  linkedin: {
+    clientId: process.env.LINKEDIN_CLIENT_ID || '',
+    clientSecret: process.env.LINKEDIN_CLIENT_SECRET || '',
+    redirectUri: process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:8080/api/social/accounts/linkedin/callback',
+    scope: process.env.LINKEDIN_SCOPE || 'openid,profile,email,w_member_social',
+  },
+  socialPublishing: {
+    enabled: process.env.SOCIAL_PUBLISHING_ENABLED === 'true',
+    cron: process.env.SOCIAL_PUBLISHING_CRON || '*/5 * * * *',
   }
 };
 

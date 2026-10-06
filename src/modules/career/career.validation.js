@@ -4,7 +4,7 @@ export const createJobSchema = z.object({
   title: z.string().min(2, 'Job title must be at least 2 characters'),
   slug: z.string().optional(),
   department: z.string().min(2, 'Department is required'),
-  location: z.string().min(2, 'Location is required'),
+  location: z.enum(['Noida, Uttar Pradesh', 'Remote (India)']),
   employmentType: z.string().default('Full-time'),
   experience: z.string().min(1, 'Experience requirement is required'),
   salary: z.string().optional(),

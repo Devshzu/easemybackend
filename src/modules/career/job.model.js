@@ -23,6 +23,7 @@ const jobSchema = new mongoose.Schema(
     },
     location: {
       type: String,
+      enum: ['Noida, Uttar Pradesh', 'Remote (India)'],
       required: [true, 'Location is required'],
       trim: true,
       index: true,

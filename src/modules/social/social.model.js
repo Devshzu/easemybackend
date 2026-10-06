@@ -121,6 +121,8 @@ const socialAccountSchema = new mongoose.Schema(
       clientSecret: { type: String, default: '' },
       apiKey: { type: String, default: '' },
       webhookUrl: { type: String, default: '' },
+      linkedinUserId: { type: String, default: '' },
+      expiresAt: { type: Date, default: null },
     },
     status: {
       type: String,

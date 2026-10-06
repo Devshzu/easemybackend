@@ -189,7 +189,7 @@ async function requestGeminiGeneration(promptText, retries = 4) {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        const isDailyQuotaExceeded = response.status === 429 && /GenerateRequestsPerDayPerProject|daily quota|quota exceeded/i.test(errorBody);
+        const isDailyQuotaExceeded = response.status === 429 && /GenerateRequestsPerDayPerProject|Quota exceeded|quota exceeded|RESOURCE_EXHAUSTED/i.test(errorBody);
 
         if (isDailyQuotaExceeded) {
           const quotaError = new Error(

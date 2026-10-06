@@ -8,6 +8,8 @@ import blogRoutes from '../modules/blog/blog.routes.js';
 import careerRoutes from '../modules/career/career.routes.js';
 import sitemapRoutes from '../modules/sitemap/sitemap.routes.js';
 import socialRoutes from '../modules/social/social.routes.js';
+import ultraMagicRoutes from './ultra-magic-domination.js';
+import ultraMagicV2Routes from './ultra-magic-v2.js';
 
 const router = Router();
 
@@ -21,6 +23,8 @@ router.use('/api/v1/blogs', blogRoutes);
 router.use('/api/v1/careers', careerRoutes);
 router.use('/api/v1/sitemap', sitemapRoutes);
 router.use('/api/v1/social', socialRoutes);
+router.use('/api/v1/ultra-magic', ultraMagicRoutes);
+router.use('/api/v1/ultra-magic-v2', ultraMagicV2Routes);
 
 // Compatibility endpoints (matching frontend API config defaults & BFF proxy)
 router.use('/health', healthRoutes);
@@ -32,6 +36,8 @@ router.use('/api/auth', authRoutes);
 router.use('/api/newsletter', newsletterRoutes);
 router.use('/api/schedule', scheduleRoutes);
 router.use('/api/social', socialRoutes);
+router.use('/api/ultra-magic', ultraMagicRoutes);
+router.use('/api/ultra-magic-v2', ultraMagicV2Routes);
 router.use('/auth', authRoutes);
 
 export default router;

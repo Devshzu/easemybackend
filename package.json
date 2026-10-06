@@ -7,7 +7,18 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "generate-blog": "node src/modules/blog/blog.generator.js"
+    "generate-blog": "node src/modules/blog/blog.generator.js",
+    "seed:jobs": "node scripts/seed-jobs.js",
+    "test:deepai": "node scripts/test-deepai.js",
+    "test:runware": "node scripts/test-runware.js",
+    "test:ultra-magic": "node scripts/test-ultra-magic-v2.js",
+    "quick-test": "node scripts/quick-test.js",
+    "run-scheduler": "node scripts/run-scheduler-now.js",
+    "dominate": "node scripts/full-domination.js",
+    "dominate:10": "node scripts/full-domination.js 10",
+    "dominate:25": "node scripts/full-domination.js 25",
+    "dominate:50": "node scripts/full-domination.js 50",
+    "dominate:100": "node scripts/full-domination.js 100"
   },
   "keywords": [
     "express",
@@ -19,6 +30,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.20.0",
     "bullmq": "^6.3.6",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -31,9 +43,11 @@
     "morgan": "^1.10.0",
     "multer": "^2.3.0",
     "node-cron": "^4.2.1",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^10.0.9",
     "rss-parser": "^3.13.0",
     "sharp": "^0.35.4",
+    "ws": "^8.21.3",
     "zod": "^3.24.2"
   },
   "devDependencies": {

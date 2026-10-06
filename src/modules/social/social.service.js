@@ -72,6 +72,7 @@ export class SocialService {
       'scheduledAt',
       'accountConfigId',
       'sources',
+      'platform',
     ];
 
     const payload = {};
@@ -144,8 +145,54 @@ export class SocialService {
         hasClientId: Boolean(acc.credentials?.clientId),
         hasApiKey: Boolean(acc.credentials?.apiKey),
         webhookUrl: acc.credentials?.webhookUrl || '',
+        expiresAt: acc.credentials?.expiresAt || null,
       },
     }));
+  }
+
+  /**
+   * Create new social account
+   */
+  static async createAccount(accountData) {
+    const account = await SocialAccount.create(accountData);
+    return account;
+  }
+
+  /**
+   * Update social account
+   */
+  static async updateAccount(id, updateData) {
+    const allowedFields = [
+      'accountName',
+      'profileLink',
+      'credentials',
+      'status',
+      'isDefault',
+    ];
+
+    const payload = {};
+    for (const key of allowedFields) {
+      if (updateData[key] !== undefined) {
+        payload[key] = updateData[key];
+      }
+    }
+
+    const account = await SocialAccount.findByIdAndUpdate(id, payload, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!account) throw new Error('Social account not found');
+    return account;
+  }
+
+  /**
+   * Delete social account
+   */
+  static async deleteAccount(id) {
+    const account = await SocialAccount.findByIdAndDelete(id);
+    if (!account) throw new Error('Social account not found');
+    return true;
   }
 
   /**

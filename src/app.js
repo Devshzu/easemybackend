@@ -11,6 +11,13 @@ import { apiRateLimiter } from './middlewares/rateLimiter.middleware.js';
 import { notFound } from './middlewares/notFound.middleware.js';
 import { errorHandler } from './middlewares/errorHandler.middleware.js';
 
+// Initialize social media scheduler
+import './modules/social/social.scheduler.js';
+
+// Initialize Ultra Magic SEO Domination Scheduler
+import { initializeUltraMagicScheduler } from './services/ultra-magic-scheduler.js';
+initializeUltraMagicScheduler();
+
 const app = express();
 const backendRoot = path.dirname(fileURLToPath(import.meta.url));
 
