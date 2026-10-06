@@ -38,9 +38,18 @@ class UltraMagicV2Enhanced {
     this.ultraMagicV1 = new UltraMagicDominationAlgorithm();
     
     this.domain = 'easemyweb.in';
-    // Use model from config instead of hardcoded
-    this.geminiModel = config.blogAutomation.geminiModel;
-    this.geminiApiBase = `https://generativelanguage.googleapis.com/v1beta/models/${this.geminiModel}:generateContent`;
+    // Use models from config with automatic fallback for high demand (503)
+    this.geminiModels = [
+      config.blogAutomation.geminiModel || 'gemini-3.5-flash-lite',
+      'gemini-3.5-flash-lite',
+      'gemini-flash-lite-latest'
+    ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
+    this.currentModelIndex = 0;
+  }
+
+  getGeminiApiUrl(model) {
+    const selectedModel = model || this.geminiModels[this.currentModelIndex] || 'gemini-3.5-flash-lite';
+    return `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`;
   }
 
   /**
@@ -188,7 +197,7 @@ class UltraMagicV2Enhanced {
         // 3. Inject schema markup
         const contentWithSchema = this.schemaGenerator.injectSchemaIntoContent(
           content,
-          { title: ctrOptimized.title, slug: this.generateSlug(ctrOptimized.title) },
+          { title: ctrOptimized.title, slug: this.generateSlug(ctrOptimized.title), content },
           cluster.keywords
         );
 
@@ -249,11 +258,12 @@ class UltraMagicV2Enhanced {
    * 🤖 Generate content using Gemini with key rotation
    */
   async generateContentWithGemini(cluster, title) {
-    const maxRetries = 3;
+    const maxRetries = 4;
     let attempt = 0;
     let geminiKey = null;
 
     while (attempt < maxRetries) {
+      const activeModel = this.geminiModels[this.currentModelIndex] || 'gemini-3.5-flash-lite';
       try {
         // Get next Gemini key (round-robin)
         geminiKey = this.keyRotator.getNextKey();
@@ -261,7 +271,7 @@ class UltraMagicV2Enhanced {
         const prompt = this.buildContentPrompt(cluster, title);
         
         const response = await axios.post(
-          `${this.geminiApiBase}?key=${geminiKey}`,
+          `${this.getGeminiApiUrl(activeModel)}?key=${geminiKey}`,
           {
             contents: [{
               parts: [{ text: prompt }]
@@ -300,10 +310,17 @@ class UltraMagicV2Enhanced {
           continue;
         }
         
-        if (isServiceError && attempt < maxRetries) {
-          console.log(`⚠️  Service temporarily unavailable (${error.response?.status}), retrying in ${attempt * 3}s...`);
-          await this.delay(attempt * 3000); // Longer delay for service errors
-          continue;
+        if (isServiceError) {
+          if (this.geminiModels.length > 1) {
+            this.currentModelIndex = (this.currentModelIndex + 1) % this.geminiModels.length;
+            const nextModel = this.geminiModels[this.currentModelIndex];
+            console.log(`⚠️  Service ${error.response?.status} on ${activeModel}, rotating to fallback model: ${nextModel}`);
+          }
+          if (attempt < maxRetries) {
+            console.log(`⚠️  Service temporarily unavailable (${error.response?.status}), retrying in ${attempt * 2}s...`);
+            await this.delay(attempt * 2000);
+            continue;
+          }
         }
         
         console.error(`❌ Gemini attempt ${attempt} failed:`, error.message);

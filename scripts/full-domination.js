@@ -23,6 +23,7 @@
 import UltraMagicV2Enhanced from '../src/services/ultra-magic-v2-enhanced.js';
 import AutoBacklinkBuilder from '../src/services/auto-backlink-builder.js';
 import InternalLinkingWebBuilder from '../src/services/internal-linking-web-builder.js';
+import { generateAndWriteSitemap } from '../src/modules/sitemap/sitemap.generator.js';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
@@ -162,9 +163,10 @@ async function runCompleteDomination() {
     console.log('═══════════════════════════════════════════════════════════\n');
     
     console.log('📄 Updating sitemap.xml...');
-    console.log('✅ Sitemap updated automatically!');
-    console.log('   - New URLs added to sitemap');
-    console.log('   - Google will discover them automatically\n');
+    const sitemapResult = await generateAndWriteSitemap();
+    console.log(`✅ Sitemap updated automatically with ${sitemapResult?.urlCount || 0} URLs!`);
+    console.log(`   - Output location: ${sitemapResult?.outputFile || 'public/sitemap.xml'}`);
+    console.log('   - Google and search engines can discover them via sitemap\n');
     
     console.log('═══════════════════════════════════════════════════════════');
     console.log('🎉 COMPLETE DOMINATION EXECUTED SUCCESSFULLY!');

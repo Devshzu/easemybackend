@@ -42,7 +42,7 @@ class InternalLinkingWebBuilder {
     internalLinks.related_blogs = relatedBlogs.slice(0, 15);
 
     // 2. Add relevant service page links (2-3 links)
-    const relevantServices = this.getRelevantServicePages(keywords);
+    const relevantServices = this.getRelevantServicePages(keywords, blogPost.title);
     internalLinks.service_pages = relevantServices.slice(0, 3);
 
     // 3. Add strategic high-authority links
@@ -63,8 +63,7 @@ class InternalLinkingWebBuilder {
    */
   async findRelatedBlogs(keywords, excludeId) {
     try {
-      // Search for blogs with similar keywords
-      const relatedBlogs = await Blog.find({
+      let relatedBlogs = await Blog.find({
         _id: { $ne: excludeId },
         published: true,
         keywords: { $in: keywords }
@@ -72,6 +71,16 @@ class InternalLinkingWebBuilder {
       .select('title slug keywords')
       .sort({ createdAt: -1 })
       .limit(20);
+
+      if (relatedBlogs.length === 0) {
+        relatedBlogs = await Blog.find({
+          _id: { $ne: excludeId },
+          published: true
+        })
+        .select('title slug keywords')
+        .sort({ createdAt: -1 })
+        .limit(10);
+      }
 
       return relatedBlogs.map(blog => ({
         url: `/blog/${blog.slug}`,
@@ -106,31 +115,37 @@ class InternalLinkingWebBuilder {
   /**
    * 🏢 Get relevant service pages based on keywords
    */
-  getRelevantServicePages(keywords) {
+  getRelevantServicePages(keywords = [], blogTitle = '') {
     const relevantServices = [];
-    const keywordStr = keywords.join(' ').toLowerCase();
+    const keywordStr = `${(keywords || []).join(' ')} ${blogTitle || ''}`.toLowerCase();
 
     for (const service of this.servicePages) {
+      if (!service) continue;
       // Match keywords to service pages
       if (keywordStr.includes('web') && service.url.includes('web-development')) {
         relevantServices.push(service);
-      } else if (keywordStr.includes('mobile') || keywordStr.includes('app')) {
-        if (service.url.includes('mobile-app')) relevantServices.push(service);
-      } else if (keywordStr.includes('marketing') || keywordStr.includes('seo')) {
-        if (service.url.includes('digital-marketing') || service.url.includes('seo')) {
-          relevantServices.push(service);
-        }
-      } else if (keywordStr.includes('ecommerce') || keywordStr.includes('shop')) {
-        if (service.url.includes('ecommerce')) relevantServices.push(service);
-      } else if (keywordStr.includes('design') || keywordStr.includes('ui')) {
-        if (service.url.includes('ui-ux')) relevantServices.push(service);
+      } else if ((keywordStr.includes('mobile') || keywordStr.includes('app')) && service.url.includes('mobile-app')) {
+        relevantServices.push(service);
+      } else if ((keywordStr.includes('marketing') || keywordStr.includes('seo')) && (service.url.includes('digital-marketing') || service.url.includes('seo'))) {
+        relevantServices.push(service);
+      } else if ((keywordStr.includes('ecommerce') || keywordStr.includes('shop')) && service.url.includes('ecommerce')) {
+        relevantServices.push(service);
+      } else if ((keywordStr.includes('design') || keywordStr.includes('ui')) && service.url.includes('ui-ux')) {
+        relevantServices.push(service);
       }
     }
 
-    // Always add contact page
-    relevantServices.push(this.servicePages.find(s => s.url === '/contact'));
+    if (relevantServices.length === 0) {
+      relevantServices.push(this.servicePages[0]);
+    }
 
-    return relevantServices;
+    // Always add contact page
+    const contactPage = this.servicePages.find(s => s && s.url === '/contact');
+    if (contactPage && !relevantServices.includes(contactPage)) {
+      relevantServices.push(contactPage);
+    }
+
+    return relevantServices.filter(Boolean);
   }
 
   /**
@@ -165,21 +180,23 @@ class InternalLinkingWebBuilder {
   injectLinksIntoContent(content, internalLinks) {
     let enhancedContent = content;
 
-    // 1. Add "Related Articles" section at the end
-    const relatedSection = this.generateRelatedArticlesSection(internalLinks.related_blogs);
-    enhancedContent += '\n\n' + relatedSection;
+    // 1. Add "Related Articles" section at the end (if not already present)
+    if (!enhancedContent.includes('related-articles') && internalLinks.related_blogs?.length > 0) {
+      const relatedSection = this.generateRelatedArticlesSection(internalLinks.related_blogs);
+      enhancedContent += '\n\n' + relatedSection;
+    }
 
     // 2. Add contextual links throughout content
     enhancedContent = this.addContextualLinks(enhancedContent, internalLinks);
 
-    // 3. Add service CTA boxes
-    const ctaSection = this.generateServiceCTASection(internalLinks.service_pages);
-    
-    // Insert CTA in the middle of content
-    const contentParts = enhancedContent.split('\n\n');
-    const middleIndex = Math.floor(contentParts.length / 2);
-    contentParts.splice(middleIndex, 0, ctaSection);
-    enhancedContent = contentParts.join('\n\n');
+    // 3. Add service CTA boxes (if not already present)
+    if (!enhancedContent.includes('service-cta-box') && internalLinks.service_pages?.length > 0) {
+      const ctaSection = this.generateServiceCTASection(internalLinks.service_pages);
+      const contentParts = enhancedContent.split('\n\n');
+      const middleIndex = Math.floor(contentParts.length / 2);
+      contentParts.splice(middleIndex, 0, ctaSection);
+      enhancedContent = contentParts.join('\n\n');
+    }
 
     return enhancedContent;
   }
@@ -230,7 +247,7 @@ class InternalLinkingWebBuilder {
    * 💼 Generate Service CTA section
    */
   generateServiceCTASection(servicePages) {
-    if (servicePages.length === 0) return '';
+    if (!servicePages || servicePages.length === 0 || !servicePages[0]) return '';
 
     const mainService = servicePages[0];
     
@@ -293,11 +310,18 @@ class InternalLinkingWebBuilder {
       if (!newBlog) return;
 
       // Find blogs that should link to this new blog
-      const relatedBlogs = await Blog.find({
+      let relatedBlogs = await Blog.find({
         _id: { $ne: newBlogId },
         published: true,
         keywords: { $in: newBlog.keywords || [] }
       }).limit(20);
+
+      if (relatedBlogs.length === 0) {
+        relatedBlogs = await Blog.find({
+          _id: { $ne: newBlogId },
+          published: true
+        }).sort({ createdAt: -1 }).limit(5);
+      }
 
       // Add link to new blog in related blogs
       for (const blog of relatedBlogs) {

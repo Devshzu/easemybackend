@@ -4,16 +4,22 @@
  * 4x faster content generation with zero downtime
  */
 
+import { config } from '../config/env.config.js';
+
 class GeminiKeyRotator {
   constructor() {
-    // Load all available Gemini keys
-    this.keys = [
+    // Load all available Gemini keys deduplicated
+    const configuredKeys = config.blogAutomation?.geminiKeys || [];
+    const envKeys = [
       process.env.GEMINI_KEY_1,
       process.env.GEMINI_KEY_2,
       process.env.GEMINI_KEY_3,
       process.env.GEMINI_KEY_4,
+      process.env.GEMINI_KEY_5,
+      process.env.GEMINI_KEY_6,
       process.env.GOOGLE_GEMINI_API_KEY
-    ].filter(key => key && key.trim() !== '');
+    ];
+    this.keys = [...new Set([...configuredKeys, ...envKeys].filter(key => key && key.trim() !== ''))];
 
     this.currentIndex = 0;
     this.keyUsageCount = new Map();

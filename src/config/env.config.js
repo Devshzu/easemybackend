@@ -55,7 +55,7 @@ export const config = {
     redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
     geminiKeys,
     geminiKey: geminiKeys[0] || '',
-    geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
     imageBaseUrl: process.env.IMAGE_GENERATION_URL || 'https://image.pollinations.ai/prompt/',
     openaiApiKey: process.env.OPENAI_API_KEY || '',
     openaiImageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst',

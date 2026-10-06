@@ -18,7 +18,9 @@
     "dominate:10": "node scripts/full-domination.js 10",
     "dominate:25": "node scripts/full-domination.js 25",
     "dominate:50": "node scripts/full-domination.js 50",
-    "dominate:100": "node scripts/full-domination.js 100"
+    "dominate:100": "node scripts/full-domination.js 100",
+    "build:links": "node scripts/build-internal-links-now.js",
+    "build:backlinks": "node scripts/build-backlinks-now.js"
   },
   "keywords": [
     "express",
@@ -32,6 +34,7 @@
   "dependencies": {
     "axios": "^1.20.0",
     "bullmq": "^6.3.6",
+    "cheerio": "^1.2.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

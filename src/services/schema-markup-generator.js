@@ -310,18 +310,21 @@ class SchemaMarkupGenerator {
   /**
    * 📊 Inject schema into blog content
    */
-  injectSchemaIntoContent(content, blogPost, keywords) {
+  injectSchemaIntoContent(content, blogPost = {}, keywords = []) {
+    const postContent = content || blogPost?.content || '';
+    const post = { ...blogPost, content: postContent };
+
     // Generate FAQ items
-    const faqItems = this.generateFAQItems(keywords[0] || blogPost.title, keywords);
+    const faqItems = this.generateFAQItems(keywords[0] || post.title || 'FAQ', keywords);
 
     // Generate all schemas
-    const schemas = this.generateCompleteSchema(blogPost, keywords, faqItems);
+    const schemas = this.generateCompleteSchema(post, keywords, faqItems);
 
     // Generate HTML
     const schemaHtml = this.generateSchemaScriptTag(schemas);
 
     // Add schema at the beginning of content
-    const enhancedContent = schemaHtml + '\n\n' + content;
+    const enhancedContent = schemaHtml + '\n\n' + postContent;
 
     // Add visible FAQ section at the end
     const faqSectionHtml = this.generateFAQSectionHTML(faqItems);
@@ -362,8 +365,9 @@ class SchemaMarkupGenerator {
    * 📏 Estimate word count
    */
   estimateWordCount(content) {
+    if (!content || typeof content !== 'string') return 0;
     const text = content.replace(/<[^>]*>/g, '');
-    return text.split(/\s+/).length;
+    return text.split(/\s+/).filter(Boolean).length;
   }
 
   /**
