@@ -424,20 +424,9 @@ Required HTML Elements with CSS Classnames:
 12. Visual/diagram elements: use the VISUAL STRUCTURE ELEMENTS defined above (blog-callout, blog-stat-box, blog-flow, blog-timeline, blog-compare-grid, blog-key-takeaway, blog-faq) where they genuinely fit the topic.
 
 ==================================================
-IMAGE GENERATION PROMPT (CLEAR, CINEMATIC ANIMATED & PEOPLE-FOCUSED REQUIREMENT)
+IMAGE CONCEPT (CONCISE, LOW-TOKEN)
 ==================================================
-Create a highly specific, topic-relevant visual image generation prompt for this article.
-CRITICAL VISUAL RULES:
-1. ART STYLE: Modern 3D/2.5D vibrant cinematic animated illustration style (high-end animated movie visual quality, Pixar/DreamWorks style digital artwork).
-2. PEOPLE & CHARACTERS: MUST feature clear, attractive, expressive human characters / people (such as modern developers, students, tech creators, young professionals, business founders) actively working, collaborating, or engaging with modern tech, screens, laptops, interfaces, or futuristic tools.
-3. TOPIC RELEVANCE: The scene MUST directly illustrate the core story "${story.title}".
-   - For Technology / Programming: depict an enthusiastic developer character in a vibrant animated desk setup with glowing dual screens showing sleek code.
-   - For AI & ML: depict a young innovator character collaborating with a friendly animated AI holographic display or digital assistant.
-   - For Business & Career: depict dynamic animated team members celebrating a milestone or analyzing colorful digital charts in a modern bright glass workspace.
-4. ULTRA-SHARP CLARITY & HD DETAILS: Mandate razor-sharp focus, crystal clear 8k resolution, crisp line edges, rich vibrant colors, warm cinematic studio volumetric lighting, glossy 3D textures.
-5. ABSOLUTELY NO BLUR OR DARK SILHOUETTES: Zero background blur, zero face blur, no dark murky silhouettes, no dull lighting, no low quality.
-6. NO TEXT OR LOGOS: Zero rendered letters, words, logos, or watermarks.
-7. COMPOSITION: 16:9 landscape aspect ratio with clear foreground characters and detailed animated environment.
+- "imagePrompt": Concise 1-sentence visual concept describing a modern 3D tech editorial artwork illustrating "${story.title}". Keep it short and impactful.
 
 ==================================================
 OUTPUT JSON FORMAT
@@ -571,7 +560,7 @@ const logoPath = path.resolve(moduleDir, '../../../public/newlogo.png');
 async function overlayLogoOnBuffer(imageBuffer, width = 1600, height = 900) {
   try {
     const logoBuffer = await fs.readFile(logoPath);
-    const logoWidth = Math.round(width * 0.18);
+    const logoWidth = Math.round(width * 0.16);
     const resizedLogo = await sharp(logoBuffer)
       .resize({ width: logoWidth, fit: 'contain' })
       .toBuffer();
@@ -581,8 +570,8 @@ async function overlayLogoOnBuffer(imageBuffer, width = 1600, height = 900) {
       .composite([
         {
           input: resizedLogo,
-          top: 30,
-          left: 35,
+          top: 40,
+          left: width - logoWidth - 50,
         },
       ])
       .webp({ quality: 92 })
@@ -596,55 +585,57 @@ async function overlayLogoOnBuffer(imageBuffer, width = 1600, height = 900) {
   }
 }
 
-export async function saveImage(imagePrompt, retries = 3) {
-  const enhancedPrompt = `${imagePrompt}, professional corporate tech editorial feature artwork, modern 3D vector illustration, clean typography layout, 1600x900 landscape ratio, ultra sharp focus, crisp details, 8k resolution, cinematic volumetric studio lighting, rich vivid colors, glossy 3D render, 4k ultra-high-definition`;
+export async function saveImage(imagePromptOrOptions) {
+  let options = {};
+  if (typeof imagePromptOrOptions === 'object' && imagePromptOrOptions !== null) {
+    options = { ...imagePromptOrOptions };
+  } else {
+    options = {
+      imagePrompt: String(imagePromptOrOptions || ''),
+      title: String(imagePromptOrOptions || '').split('.')[0],
+    };
+  }
 
-  logger.info(`Generating HD blog image with Gemini AI Imagen API prompt: "${enhancedPrompt.slice(0, 120)}..."`);
+  const title = options.title || '';
+  const keywords = options.keywords || [];
+  const category = options.category || '';
+  const promptText = options.imagePrompt || options.promptText || '';
+
+  logger.info(`Generating Gemini AI blog image for: "${title.slice(0, 60)}" (Keywords: [${Array.isArray(keywords) ? keywords.join(', ') : keywords}])`);
 
   await fs.mkdir(publicBlogDir, { recursive: true });
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
   const targetPath = path.join(publicBlogDir, filename);
 
-  // 1. Try Gemini AI Imagen API first (using Gemini API Key)
   try {
-    const rawBuffer = await generateGeminiImageBuffer(enhancedPrompt, '16:9');
+    // Generate buffer with Gemini (Multimodal or Gemini Design + Sharp Canvas)
+    const rawBuffer = await generateGeminiImageBuffer({
+      title,
+      keywords,
+      category,
+      promptText,
+    }, '16:9');
+
+    // Overlay EaseMyWeb logo badge onto generated buffer
     const finalBuffer = await overlayLogoOnBuffer(rawBuffer, 1600, 900);
     await fs.writeFile(targetPath, finalBuffer);
 
-    logger.info(`Blog image generated successfully with Gemini AI & EaseMyWeb logo overlay: ${filename}`);
+    logger.info(`Blog image successfully created with Gemini AI & saved to: ${filename}`);
     return `${config.publicBaseUrl}/blog/${filename}`;
-  } catch (geminiImgErr) {
-    logger.warn(`Gemini AI image generation failed (${geminiImgErr.message}). Falling back to primary image provider...`);
-  }
-
-  // 2. Fallback provider
-  const baseUrl = config.blogAutomation.imageBaseUrl.replace(/\/+$/, '');
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const modelParam = attempt === 1 ? '&model=flux' : '&model=turbo';
-      const imageUrl = `${baseUrl}/${encodeURIComponent(enhancedPrompt)}?width=1600&height=900&nologo=true${modelParam}`;
-
-      const response = await fetch(imageUrl, {
-        signal: AbortSignal.timeout(config.blogAutomation.imageRequestTimeoutMs),
-      });
-      if (!response.ok) {
-        throw new Error(`Image provider returned HTTP ${response.status}`);
-      }
-
-      const imageBuffer = Buffer.from(await response.arrayBuffer());
-      const finalBuffer = await overlayLogoOnBuffer(imageBuffer, 1600, 900);
-      await fs.writeFile(targetPath, finalBuffer);
-
-      return `${config.publicBaseUrl}/blog/${filename}`;
-    } catch (err) {
-      if (attempt === retries) throw err;
-      logger.warn(`Fallback image generation attempt ${attempt}/${retries} failed: ${err.message}. Retrying...`);
-      await new Promise((res) => setTimeout(res, 2000));
-    }
+  } catch (err) {
+    logger.error(`Gemini image generation failed: ${err.message}. Retrying with local SVG canvas...`, err);
+    // Emergency local generation using title and keywords - NEVER call external websites!
+    const localBuf = await generateGeminiImageBuffer({
+      title,
+      keywords,
+      category,
+    }, '16:9');
+    const finalBuffer = await overlayLogoOnBuffer(localBuf, 1600, 900);
+    await fs.writeFile(targetPath, finalBuffer);
+    return `${config.publicBaseUrl}/blog/${filename}`;
   }
 }
 
-// 20 & 21. COMPLETE PUBLISH FLOW & DUPLICATE PROTECTION
 export async function generateAndPublishBlog() {
   const lockOwner = await acquireBlogGenerationLock();
   if (!lockOwner) {
@@ -685,7 +676,12 @@ export async function generateAndPublishBlog() {
       article = validateGeneratedArticle(retryRaw, category);
     }
 
-    const image = await saveImage(article.imagePrompt);
+    const image = await saveImage({
+      title: article.title,
+      keywords: article.keywords,
+      category,
+      imagePrompt: article.imagePrompt,
+    });
 
     const blog = await BlogService.createBlog({
     title: article.title,

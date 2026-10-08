@@ -82,7 +82,7 @@ const blogSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      default: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&auto=format&fit=crop&q=80',
+      default: '',
     },
     published: {
       type: Boolean,
@@ -98,6 +98,22 @@ const blogSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+blogSchema.pre('save', async function () {
+  if (!this.image || this.image.includes('images.unsplash.com')) {
+    try {
+      const { saveImage } = await import('./blog.generator.js');
+      this.image = await saveImage({
+        title: this.title,
+        keywords: this.keywords,
+        category: this.category,
+      });
+    } catch (err) {
+      // Don't block save if image generation fails, but log
+      console.warn('Auto-image generation in pre-save failed:', err.message);
+    }
+  }
+});
 
 export const Blog = mongoose.model('Blog', blogSchema);
 export default Blog;

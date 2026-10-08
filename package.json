@@ -20,7 +20,8 @@
     "dominate:50": "node scripts/full-domination.js 50",
     "dominate:100": "node scripts/full-domination.js 100",
     "build:links": "node scripts/build-internal-links-now.js",
-    "build:backlinks": "node scripts/build-backlinks-now.js"
+    "build:backlinks": "node scripts/build-backlinks-now.js",
+    "fix:images": "node scripts/fix-duplicate-blog-images.js"
   },
   "keywords": [
     "express",

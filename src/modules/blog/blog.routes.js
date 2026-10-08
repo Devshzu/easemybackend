@@ -1,10 +1,23 @@
 import { Router } from 'express';
-import { createBlog, getBlogs, getBlog, getComments, getLikeStatus, toggleLike, updateBlog, deleteBlog, addComment, addReply } from './blog.controller.js';
+import {
+  createBlog,
+  getBlogs,
+  getBlog,
+  getComments,
+  getLikeStatus,
+  toggleLike,
+  updateBlog,
+  deleteBlog,
+  addComment,
+  addReply,
+  generateBlogImage,
+} from './blog.controller.js';
 
 const router = Router();
 
 // Public / Admin blog listing & single post
 router.get('/', getBlogs);
+router.post('/generate-image', generateBlogImage);
 router.get('/:idOrSlug', getBlog);
 router.get('/:idOrSlug/comments', getComments);
 router.get('/:idOrSlug/likes', getLikeStatus);

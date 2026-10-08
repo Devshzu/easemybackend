@@ -1,10 +1,20 @@
 import { BlogService } from './blog.service.js';
+import { saveImage } from './blog.generator.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
 export const createBlog = asyncHandler(async (req, res) => {
   const blog = await BlogService.createBlog(req.body);
   res.status(201).json(new ApiResponse(201, blog, 'Blog created successfully'));
+});
+
+export const generateBlogImage = asyncHandler(async (req, res) => {
+  const { title, keywords, category } = req.body;
+  if (!title || !title.trim()) {
+    return res.status(400).json(new ApiResponse(400, null, 'Blog title is required for image generation'));
+  }
+  const imageUrl = await saveImage({ title, keywords, category });
+  res.status(200).json(new ApiResponse(200, { imageUrl }, 'Blog image generated successfully with Gemini AI'));
 });
 
 export const getBlogs = asyncHandler(async (req, res) => {

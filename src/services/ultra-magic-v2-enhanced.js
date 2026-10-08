@@ -22,6 +22,7 @@ import CTROptimizationEngine from './ctr-optimization-engine.js';
 import FreeToolsAggregator from './free-tools-aggregator.js';
 import UltraMagicDominationAlgorithm from './ultra-magic-domination-algorithm.js';
 import Blog from '../modules/blog/blog.model.js';
+import { saveImage } from '../modules/blog/blog.generator.js';
 import axios from 'axios';
 
 import { config } from '../config/env.config.js';
@@ -201,7 +202,18 @@ class UltraMagicV2Enhanced {
           cluster.keywords
         );
 
-        // 4. Create blog object
+        // 4. Generate unique blog image with Gemini AI based on Title & Keywords
+        let blogImage = '';
+        try {
+          blogImage = await saveImage({
+            title: ctrOptimized.title,
+            keywords: cluster.keywords,
+            category: this.categorizeKeyword(cluster.primary_keyword),
+          });
+        } catch (imgErr) {
+          console.warn(`Could not generate Gemini image for "${ctrOptimized.title}":`, imgErr.message);
+        }
+
         const blogData = {
           title: ctrOptimized.title,
           slug: this.generateSlug(ctrOptimized.title),
@@ -212,6 +224,7 @@ class UltraMagicV2Enhanced {
           lsiKeywords: cluster.lsi_keywords || cluster.keywords || [],
           content: contentWithSchema,
           category: this.categorizeKeyword(cluster.primary_keyword),
+          image: blogImage,
           published: true,
           author: 'EaseMyWeb Ultra AI V2',
           readTime: '12 min read',

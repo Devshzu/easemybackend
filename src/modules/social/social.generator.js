@@ -308,43 +308,19 @@ export async function saveSocialImage(imagePrompt, retries = 3) {
   const filename = `social-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
   const targetPath = path.join(publicStorageDir, filename);
 
-  // 1. Try Gemini AI Imagen API first (using Gemini API Key)
   try {
-    const rawBuffer = await generateGeminiImageBuffer(enhancedPrompt, '16:9');
+    const rawBuffer = await generateGeminiImageBuffer({
+      promptText: imagePrompt,
+      title: imagePrompt.slice(0, 60),
+    }, '16:9');
     const finalBuffer = await overlayLogoOnBuffer(rawBuffer, 1200, 627);
     await fs.writeFile(targetPath, finalBuffer);
 
     logger.info(`LinkedIn image generated with Gemini AI & EaseMyWeb logo composite: ${filename}`);
     return `${config.publicBaseUrl}/blog/${filename}`;
-  } catch (geminiImgErr) {
-    logger.warn(`Gemini AI social image generation failed (${geminiImgErr.message}). Falling back to primary provider...`);
-  }
-
-  // 2. Fallback provider
-  const baseUrl = config.blogAutomation.imageBaseUrl.replace(/\/+$/, '');
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const modelParam = attempt === 1 ? '&model=flux' : '&model=turbo';
-      const imageUrl = `${baseUrl}/${encodeURIComponent(enhancedPrompt)}?width=1200&height=627&nologo=true${modelParam}`;
-
-      const response = await fetch(imageUrl, {
-        signal: AbortSignal.timeout(config.blogAutomation.imageRequestTimeoutMs),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Image provider returned HTTP ${response.status}`);
-      }
-
-      const imageBuffer = Buffer.from(await response.arrayBuffer());
-      const finalBuffer = await overlayLogoOnBuffer(imageBuffer, 1200, 627);
-      await fs.writeFile(targetPath, finalBuffer);
-
-      return `${config.publicBaseUrl}/blog/${filename}`;
-    } catch (err) {
-      if (attempt === retries) throw err;
-      logger.warn(`Fallback social image generation attempt ${attempt}/${retries} failed: ${err.message}. Retrying...`);
-      await new Promise((res) => setTimeout(res, 2000));
-    }
+  } catch (err) {
+    logger.error(`Gemini social image generation failed: ${err.message}`, err);
+    throw err;
   }
 }
 

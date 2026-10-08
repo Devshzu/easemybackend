@@ -1,6 +1,7 @@
 import { Blog } from './blog.model.js';
 import { logger } from '../../config/logger.js';
 import { BlogEmailNotificationService } from '../newsletter/blogEmailNotification.service.js';
+import { saveImage } from './blog.generator.js';
 
 export class BlogService {
   /**
@@ -21,6 +22,19 @@ export class BlogService {
     logger.info('Creating new blog post:', data.title);
     const slug = data.slug || this.generateSlug(data.title);
 
+    let blogImage = data.image;
+    if (!blogImage || blogImage.includes('images.unsplash.com')) {
+      try {
+        blogImage = await saveImage({
+          title: data.title,
+          keywords: data.keywords,
+          category: data.category,
+        });
+      } catch (imgErr) {
+        logger.warn(`Could not auto-generate blog image with Gemini: ${imgErr.message}`);
+      }
+    }
+
     const blog = await Blog.create({
       title: data.title,
       slug,
@@ -34,7 +48,7 @@ export class BlogService {
       references: data.references,
       author: data.author || 'EaseMyWeb Team',
       readTime: data.readTime || '5 min read',
-      image: data.image || 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&auto=format&fit=crop&q=80',
+      image: blogImage || '',
       published: data.published !== undefined ? data.published : true,
     });
 
