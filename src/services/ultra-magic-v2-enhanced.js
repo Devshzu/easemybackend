@@ -202,7 +202,7 @@ class UltraMagicV2Enhanced {
           cluster.keywords
         );
 
-        // 4. Generate unique blog image with Gemini AI based on Title & Keywords
+        // 4. Generate unique blog image based on Title & Keywords
         let blogImage = '';
         try {
           blogImage = await saveImage({
@@ -211,7 +211,7 @@ class UltraMagicV2Enhanced {
             category: this.categorizeKeyword(cluster.primary_keyword),
           });
         } catch (imgErr) {
-          console.warn(`Could not generate Gemini image for "${ctrOptimized.title}":`, imgErr.message);
+          console.warn(`Could not generate AI image for "${ctrOptimized.title}":`, imgErr.message);
         }
 
         const blogData = {

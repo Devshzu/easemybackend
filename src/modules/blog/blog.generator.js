@@ -10,6 +10,7 @@ import { logger } from '../../config/logger.js';
 import { acquireBlogGenerationLock, releaseBlogGenerationLock } from './blog.generation-lock.js';
 import { generateLinkedInPostFromBlog } from '../social/social.generator.js';
 import { generateGeminiImageBuffer } from '../../utils/geminiImage.js';
+import { saveGeneratedImage } from '../../services/image-generation/index.js';
 
 const parser = new Parser();
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -601,38 +602,22 @@ export async function saveImage(imagePromptOrOptions) {
   const category = options.category || '';
   const promptText = options.imagePrompt || options.promptText || '';
 
-  logger.info(`Generating Gemini AI blog image for: "${title.slice(0, 60)}" (Keywords: [${Array.isArray(keywords) ? keywords.join(', ') : keywords}])`);
-
-  await fs.mkdir(publicBlogDir, { recursive: true });
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
-  const targetPath = path.join(publicBlogDir, filename);
+  logger.info(`Generating blog image for: "${title.slice(0, 60)}" (Keywords: [${Array.isArray(keywords) ? keywords.join(', ') : keywords}])`);
 
   try {
-    // Generate buffer with Gemini (Multimodal or Gemini Design + Sharp Canvas)
-    const rawBuffer = await generateGeminiImageBuffer({
+    return await saveGeneratedImage({
       title,
       keywords,
       category,
       promptText,
-    }, '16:9');
-
-    // Overlay EaseMyWeb logo badge onto generated buffer
-    const finalBuffer = await overlayLogoOnBuffer(rawBuffer, 1600, 900);
-    await fs.writeFile(targetPath, finalBuffer);
-
-    logger.info(`Blog image successfully created with Gemini AI & saved to: ${filename}`);
-    return `${config.publicBaseUrl}/blog/${filename}`;
+    }, { width: 1600, height: 900 });
   } catch (err) {
-    logger.error(`Gemini image generation failed: ${err.message}. Retrying with local SVG canvas...`, err);
-    // Emergency local generation using title and keywords - NEVER call external websites!
-    const localBuf = await generateGeminiImageBuffer({
+    logger.error(`Image generation failed: ${err.message}. Retrying fallback...`, err);
+    return await saveGeneratedImage({
       title,
       keywords,
       category,
-    }, '16:9');
-    const finalBuffer = await overlayLogoOnBuffer(localBuf, 1600, 900);
-    await fs.writeFile(targetPath, finalBuffer);
-    return `${config.publicBaseUrl}/blog/${filename}`;
+    }, { width: 1600, height: 900 });
   }
 }
 

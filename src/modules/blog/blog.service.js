@@ -31,7 +31,7 @@ export class BlogService {
           category: data.category,
         });
       } catch (imgErr) {
-        logger.warn(`Could not auto-generate blog image with Gemini: ${imgErr.message}`);
+        logger.warn(`Could not auto-generate blog image: ${imgErr.message}`);
       }
     }
 

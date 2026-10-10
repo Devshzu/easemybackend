@@ -256,7 +256,20 @@ function buildSvgGraphic(title, keywords, design = {}) {
  * @param {string} aspectRatio - Default '16:9'
  * @returns {Promise<Buffer>} WebP image buffer
  */
+import { generateImageBuffer as generateCfImageBuffer } from '../services/image-generation/index.js';
+
 export async function generateGeminiImageBuffer(optionsOrPrompt, aspectRatio = '16:9') {
+  const provider = config.imageGeneration?.provider || 'cloudflare';
+
+  // When Cloudflare is selected as the provider (default), use Cloudflare Workers AI FLUX model
+  if (provider === 'cloudflare') {
+    try {
+      return await generateCfImageBuffer(optionsOrPrompt, aspectRatio);
+    } catch (cfErr) {
+      logger.warn(`Cloudflare image generation failed (${cfErr.message}). Evaluating Gemini fallback...`);
+    }
+  }
+
   let title = '';
   let rawKeywords = [];
   let category = '';
@@ -273,7 +286,7 @@ export async function generateGeminiImageBuffer(optionsOrPrompt, aspectRatio = '
   }
 
   const keywords = extractAndVerifyKeywords(title, rawKeywords);
-  logger.info(`Generating Gemini blog image based on title: "${title.slice(0, 50)}" | Keywords: [${keywords.join(', ')}]`);
+  logger.info(`Generating fallback blog image based on title: "${title.slice(0, 50)}" | Keywords: [${keywords.join(', ')}]`);
 
   const keys = config.blogAutomation.geminiKeys.length
     ? config.blogAutomation.geminiKeys

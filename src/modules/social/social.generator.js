@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import { SocialPost } from './social.model.js';
 import { config } from '../../config/env.config.js';
 import { logger } from '../../config/logger.js';
+import { generateImageBuffer, optimizeSocialPromptForFlux } from '../../services/image-generation/index.js';
 import { generateGeminiImageBuffer } from '../../utils/geminiImage.js';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -300,26 +301,25 @@ async function overlayLogoOnBuffer(imageBuffer, width = 1200, height = 627) {
 }
 
 export async function saveSocialImage(imagePrompt, retries = 3) {
-  const enhancedPrompt = `${imagePrompt}, professional LinkedIn corporate infographic banner, modern tech 3D vector illustration, clean corporate typography layout, high impact visual structure, 1200x627 landscape ratio, ultra sharp focus, 8k resolution, volumetric studio lighting, rich vivid colors, glossy 3D render, pristine clean corporate quality`;
-
-  logger.info(`Generating LinkedIn social image with Gemini AI Imagen API prompt: "${enhancedPrompt.slice(0, 100)}..."`);
+  const fluxPrompt = optimizeSocialPromptForFlux(imagePrompt);
+  logger.info(`Generating LinkedIn social image with Cloudflare Workers AI FLUX prompt: "${fluxPrompt.slice(0, 100)}..."`);
 
   await fs.mkdir(publicStorageDir, { recursive: true });
   const filename = `social-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
   const targetPath = path.join(publicStorageDir, filename);
 
   try {
-    const rawBuffer = await generateGeminiImageBuffer({
-      promptText: imagePrompt,
+    const rawBuffer = await generateImageBuffer({
+      promptText: fluxPrompt,
       title: imagePrompt.slice(0, 60),
     }, '16:9');
     const finalBuffer = await overlayLogoOnBuffer(rawBuffer, 1200, 627);
     await fs.writeFile(targetPath, finalBuffer);
 
-    logger.info(`LinkedIn image generated with Gemini AI & EaseMyWeb logo composite: ${filename}`);
+    logger.info(`LinkedIn image generated with Cloudflare Workers AI & EaseMyWeb logo composite: ${filename}`);
     return `${config.publicBaseUrl}/blog/${filename}`;
   } catch (err) {
-    logger.error(`Gemini social image generation failed: ${err.message}`, err);
+    logger.error(`Social image generation failed: ${err.message}`, err);
     throw err;
   }
 }

@@ -9,12 +9,17 @@ export const createBlog = asyncHandler(async (req, res) => {
 });
 
 export const generateBlogImage = asyncHandler(async (req, res) => {
-  const { title, keywords, category } = req.body;
+  const { title, keywords, category, promptText, prompt } = req.body;
   if (!title || !title.trim()) {
     return res.status(400).json(new ApiResponse(400, null, 'Blog title is required for image generation'));
   }
-  const imageUrl = await saveImage({ title, keywords, category });
-  res.status(200).json(new ApiResponse(200, { imageUrl }, 'Blog image generated successfully with Gemini AI'));
+  const imageUrl = await saveImage({
+    title: title.trim(),
+    keywords: Array.isArray(keywords) ? keywords : (keywords ? [keywords] : []),
+    category: category || 'Technology',
+    promptText: promptText || prompt || '',
+  });
+  res.status(200).json(new ApiResponse(200, { imageUrl }, 'Blog image generated successfully with Cloudflare Workers AI'));
 });
 
 export const getBlogs = asyncHandler(async (req, res) => {

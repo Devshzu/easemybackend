@@ -69,6 +69,21 @@ export const config = {
   socialPublishing: {
     enabled: process.env.SOCIAL_PUBLISHING_ENABLED === 'true',
     cron: process.env.SOCIAL_PUBLISHING_CRON || '*/5 * * * *',
+  },
+  imageGeneration: {
+    provider: process.env.IMAGE_GENERATION_PROVIDER || 'cloudflare',
+    cloudflare: {
+      accountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+      apiToken: process.env.CLOUDFLARE_API_TOKEN || '',
+      model: process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell',
+      timeoutMs: parseInt(process.env.CLOUDFLARE_IMAGE_TIMEOUT_MS || '60000', 10),
+    },
+  },
+  cloudflare: {
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    apiToken: process.env.CLOUDFLARE_API_TOKEN || '',
+    model: process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell',
+    timeoutMs: parseInt(process.env.CLOUDFLARE_IMAGE_TIMEOUT_MS || '60000', 10),
   }
 };
 
