@@ -5,10 +5,15 @@
  */
 
 import axios from 'axios';
+import { getSerpApiKeyRotator } from './serp-key-rotator.js';
 
 class KeywordClusteringEngine {
   constructor() {
-    this.serpApiKey = process.env.SERP_API_KEY;
+    this.serpRotator = getSerpApiKeyRotator();
+  }
+
+  get serpApiKey() {
+    return this.serpRotator.getKey();
   }
 
   /**

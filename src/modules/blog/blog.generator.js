@@ -629,24 +629,37 @@ export async function generateAndPublishBlog() {
   }
 
   try {
-    const category = await getNextCategory();
-    logger.info(`Starting automated blog generation for category: ${category}`);
+    let category = await getNextCategory();
+    let story = null;
+    let categoryAttempts = 0;
 
-    const story = await getTrendingStory(category);
-    logger.info(`Selected trending topic for [${category}]: "${story.title}"`);
+    while (!story && categoryAttempts < BLOG_CATEGORIES.length) {
+      categoryAttempts++;
+      try {
+        const candidateStory = await getTrendingStory(category);
+        const normalizedTitle = candidateStory.title.trim().toLowerCase();
+        const existingBlog = await Blog.findOne({
+          $or: [
+            { title: candidateStory.title },
+            { title: { $regex: new RegExp(`^${normalizedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+          ]
+        }).select('_id title').lean();
 
-    // Check duplicate article based on title or slug
-    const normalizedTitle = story.title.trim().toLowerCase();
-    const existingBlog = await Blog.findOne({
-      $or: [
-        { title: story.title },
-        { title: { $regex: new RegExp(`^${normalizedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
-      ]
-    }).select('_id title').lean();
+        if (!existingBlog) {
+          story = candidateStory;
+          logger.info(`Selected trending topic for [${category}]: "${story.title}"`);
+          break;
+        }
 
-    if (existingBlog) {
-      logger.info(`Skipping duplicate automated blog topic: "${story.title}"`);
-      return existingBlog;
+        logger.info(`Topic "${candidateStory.title}" for [${category}] was already published. Rotating to next category...`);
+      } catch (err) {
+        logger.warn(`Could not get trending story for [${category}]: ${err.message}. Rotating to next category...`);
+      }
+      category = await getNextCategory();
+    }
+
+    if (!story) {
+      throw new Error('No fresh trending stories found across available categories');
     }
 
     let article;

@@ -1,10 +1,15 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { getSerpApiKeyRotator } from './serp-key-rotator.js';
 
 class KeywordTrendsService {
   constructor() {
     this.googleTrendsApi = 'https://trends.google.com/trends/api/explore';
-    this.serpApiKey = process.env.SERP_API_KEY; // Get from serpapi.com
+    this.serpRotator = getSerpApiKeyRotator();
+  }
+
+  get serpApiKey() {
+    return this.serpRotator.getKey();
   }
 
   /**
@@ -12,17 +17,15 @@ class KeywordTrendsService {
    */
   async getTrendingKeywords(category = '', geo = 'IN') {
     try {
-      // Use unofficial Google Trends scraping or SerpApi
-      const response = await axios.get(`https://serpapi.com/search.json`, {
-        params: {
-          engine: 'google_trends_trending_now',
-          geo: geo,
-          api_key: this.serpApiKey,
-          cat: category
-        }
+      if (!this.serpApiKey) return [];
+      // Use SerpApi with multi-key rotation and auto-failover
+      const response = await this.serpRotator.executeSearch({
+        engine: 'google_trends_trending_now',
+        geo: geo,
+        cat: category
       });
 
-      return response.data.trending_searches || [];
+      return response.trending_searches || response.data?.trending_searches || [];
     } catch (error) {
       console.error('Error fetching trends:', error);
       return [];
@@ -34,22 +37,21 @@ class KeywordTrendsService {
    */
   async getKeywordMetrics(keyword) {
     try {
-      const response = await axios.get('https://serpapi.com/search.json', {
-        params: {
-          engine: 'google_keyword_research',
-          q: keyword,
-          gl: 'in',
-          hl: 'en',
-          api_key: this.serpApiKey
-        }
+      if (!this.serpApiKey) return null;
+      const response = await this.serpRotator.executeSearch({
+        engine: 'google_keyword_research',
+        q: keyword,
+        gl: 'in',
+        hl: 'en'
       });
 
+      const resData = response.data || response;
       return {
         keyword: keyword,
-        searchVolume: response.data.search_volume || 0,
-        competition: response.data.competition || 'unknown',
-        cpc: response.data.cpc || 0,
-        trend: response.data.trend || []
+        searchVolume: resData.search_volume || 0,
+        competition: resData.competition || 'unknown',
+        cpc: resData.cpc || 0,
+        trend: resData.trend || []
       };
     } catch (error) {
       console.error('Error fetching keyword metrics:', error);
@@ -62,16 +64,14 @@ class KeywordTrendsService {
    */
   async getRelatedKeywords(seed_keyword, count = 10) {
     try {
-      const response = await axios.get('https://serpapi.com/search.json', {
-        params: {
-          engine: 'google_autocomplete',
-          q: seed_keyword,
-          gl: 'in',
-          api_key: this.serpApiKey
-        }
+      if (!this.serpApiKey) return [];
+      const response = await this.serpRotator.executeSearch({
+        engine: 'google_autocomplete',
+        q: seed_keyword,
+        gl: 'in'
       });
 
-      const suggestions = response.data.suggestions || [];
+      const suggestions = response.suggestions || response.data?.suggestions || [];
       return suggestions.slice(0, count).map(s => s.value);
     } catch (error) {
       console.error('Error fetching related keywords:', error);
@@ -84,18 +84,15 @@ class KeywordTrendsService {
    */
   async analyzeCompetitorKeywords(domain) {
     try {
-      // This would require SEMrush or Ahrefs API
-      // For now, we'll use a basic SERP analysis
-      const response = await axios.get('https://serpapi.com/search.json', {
-        params: {
-          engine: 'google',
-          q: `site:${domain}`,
-          num: 20,
-          api_key: this.serpApiKey
-        }
+      if (!this.serpApiKey) return [];
+      // Multi-key resilient SERP competitor analysis
+      const response = await this.serpRotator.executeSearch({
+        engine: 'google',
+        q: `site:${domain}`,
+        num: 20
       });
 
-      const results = response.data.organic_results || [];
+      const results = response.organic_results || response.data?.organic_results || [];
       return results.map(result => ({
         title: result.title,
         url: result.link,

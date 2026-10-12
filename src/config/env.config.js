@@ -22,6 +22,21 @@ const geminiKeys = [...new Set([
   process.env.GEMINI_KEY
 ].filter(Boolean).map((key) => key.trim()))];
 
+const configuredSerpKeys = [
+  ...Array.from({ length: 10 }, (_, index) => process.env[`SERP_API_KEY_${index + 1}`]),
+  ...Array.from({ length: 10 }, (_, index) => process.env[`SERP_KEY_${index + 1}`]),
+  process.env.SERP_API_KEYS,
+  process.env.SERP_KEYS
+].filter(Boolean)
+  .flatMap((value) => value.split(','))
+  .map((key) => key.trim())
+  .filter(Boolean);
+const serpApiKeys = [...new Set([
+  ...configuredSerpKeys,
+  process.env.SERP_API_KEY,
+  process.env.SERP_KEY
+].filter(Boolean).map((key) => key.trim()))];
+
 export const config = {
   port: process.env.PORT || 8080,
   publicBaseUrl: nodeEnv === 'production' && /localhost|127\.0\.0\.1/i.test(publicBaseUrl)
@@ -84,6 +99,12 @@ export const config = {
     apiToken: process.env.CLOUDFLARE_API_TOKEN || '',
     model: process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell',
     timeoutMs: parseInt(process.env.CLOUDFLARE_IMAGE_TIMEOUT_MS || '60000', 10),
+  },
+  serpApiKeys,
+  serpApiKey: serpApiKeys[0] || '',
+  serp: {
+    keys: serpApiKeys,
+    primaryKey: serpApiKeys[0] || '',
   }
 };
 

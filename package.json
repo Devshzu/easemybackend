@@ -5,7 +5,7 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "test": "node --test test/blog.generator.test.js test/image-generation.test.js",
+    "test": "node --test test/blog.generator.test.js test/image-generation.test.js test/serp-key-rotator.test.js",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "generate-blog": "node src/modules/blog/blog.generator.js",

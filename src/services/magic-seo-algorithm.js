@@ -1,11 +1,12 @@
 import FreeKeywordTrendsService from './free-keyword-trends.js';
 import AutoSEOOptimizer from './auto-seo-optimizer.js';
+import { getSerpApiKeyRotator } from './serp-key-rotator.js';
 
 class MagicSEORankingAlgorithm {
   constructor() {
     this.keywordService = new FreeKeywordTrendsService();
     this.seoOptimizer = new AutoSEOOptimizer();
-    this.serpApiKey = process.env.SERP_API_KEY;
+    this.serpRotator = getSerpApiKeyRotator();
     this.geminiKey = process.env.GOOGLE_GEMINI_API_KEY;
     this.domain = 'easemyweb.in';
     
@@ -19,6 +20,10 @@ class MagicSEORankingAlgorithm {
       userEngagement: 0.15,
       technicalSEO: 0.10
     };
+  }
+
+  get serpApiKey() {
+    return this.serpRotator.getKey();
   }
 
   /**
@@ -163,8 +168,12 @@ class MagicSEORankingAlgorithm {
    */
   async getSERPData(keyword) {
     try {
-      const response = await fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(keyword)}&api_key=${this.serpApiKey}&gl=in&hl=en`);
-      const data = await response.json();
+      const data = await this.serpRotator.executeSearch({
+        engine: 'google',
+        q: keyword,
+        gl: 'in',
+        hl: 'en'
+      });
       
       // Analyze top 10 results
       const organicResults = data.organic_results || [];
@@ -198,8 +207,11 @@ class MagicSEORankingAlgorithm {
       
       try {
         if (this.serpApiKey) {
-          const response = await fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(keyword + ' site:easemyweb.in')}&api_key=${this.serpApiKey}&gl=in`);
-          const data = await response.json();
+          const data = await this.serpRotator.executeSearch({
+            engine: 'google',
+            q: `${keyword} site:easemyweb.in`,
+            gl: 'in'
+          });
           
           const organicResults = data.organic_results || [];
           const currentPosition = organicResults.length > 0 ? 1 : null; // Simplified - you'd need to check actual position
@@ -238,8 +250,12 @@ class MagicSEORankingAlgorithm {
     try {
       if (!this.serpApiKey) return [];
       
-      const response = await fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(keyword)}&api_key=${this.serpApiKey}&gl=in&num=5`);
-      const data = await response.json();
+      const data = await this.serpRotator.executeSearch({
+        engine: 'google',
+        q: keyword,
+        gl: 'in',
+        num: 5
+      });
       
       const competitors = (data.organic_results || []).map(result => ({
         domain: new URL(result.link).hostname,

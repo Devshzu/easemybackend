@@ -65,14 +65,14 @@ class AutoRankingScheduler {
         return;
       }
 
-      // Filter for highest potential keywords
-      const topOpportunities = goldenKeywords
-        .filter(k => k.goldenScore >= 80)
+      // Filter for highest potential keywords with fallback
+      const threshold = parseInt(process.env.GOLDEN_OPPORTUNITY_THRESHOLD || '70', 10);
+      let topOpportunities = goldenKeywords
+        .filter(k => k.goldenScore >= threshold)
         .slice(0, 3);
 
-      if (topOpportunities.length === 0) {
-        console.log('No high-potential opportunities found');
-        return;
+      if (topOpportunities.length === 0 && goldenKeywords.length > 0) {
+        topOpportunities = goldenKeywords.slice(0, 3);
       }
 
       // Execute magic algorithm for top opportunities

@@ -1,10 +1,15 @@
 import axios from 'axios';
+import { getSerpApiKeyRotator } from './serp-key-rotator.js';
 
 class AutoBacklinkBuilder {
   constructor() {
     this.domain = 'easemyweb.in';
-    this.serpApiKey = process.env.SERP_API_KEY;
+    this.serpRotator = getSerpApiKeyRotator();
     this.geminiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_KEY_1 || process.env.GEMINI_KEY;
+  }
+
+  get serpApiKey() {
+    return this.serpRotator.getKey();
   }
 
   /**
@@ -55,18 +60,14 @@ class AutoBacklinkBuilder {
     for (const keyword of keywords.slice(0, 5)) {
       try {
         if (this.serpApiKey) {
-          // Find sites ranking for the keyword
-          const response = await axios.get(`https://serpapi.com/search.json`, {
-            params: {
-              engine: 'google',
-              q: `"${keyword}" -site:easemyweb.in`,
-              api_key: this.serpApiKey,
-              num: 15
-            },
-            timeout: 20000
-          });
+          // Find sites ranking for the keyword with multi-key failover
+          const response = await this.serpRotator.executeSearch({
+            engine: 'google',
+            q: `"${keyword}" -site:easemyweb.in`,
+            num: 15
+          }, { timeout: 20000 });
 
-          const results = response.data.organic_results || [];
+          const results = response.organic_results || response.data?.organic_results || [];
           
           for (const result of results) {
             const domain = new URL(result.link).hostname;
@@ -240,17 +241,13 @@ EaseMyWeb Team`,
     for (const query of searchQueries.slice(0, 5)) {
       try {
         if (this.serpApiKey) {
-          const response = await axios.get(`https://serpapi.com/search.json`, {
-            params: {
-              engine: 'google',
-              q: query,
-              api_key: this.serpApiKey,
-              num: 10
-            },
-            timeout: 10000
-          });
+          const response = await this.serpRotator.executeSearch({
+            engine: 'google',
+            q: query,
+            num: 10
+          }, { timeout: 10000 });
 
-          const results = response.data.organic_results || [];
+          const results = response.organic_results || response.data?.organic_results || [];
           
           for (const result of results) {
             brokenLinks.push({
@@ -288,17 +285,13 @@ EaseMyWeb Team`,
     for (const query of guestPostQueries) {
       try {
         if (this.serpApiKey) {
-          const response = await axios.get(`https://serpapi.com/search.json`, {
-            params: {
-              engine: 'google',
-              q: query,
-              api_key: this.serpApiKey,
-              num: 10
-            },
-            timeout: 10000
-          });
+          const response = await this.serpRotator.executeSearch({
+            engine: 'google',
+            q: query,
+            num: 10
+          }, { timeout: 10000 });
 
-          const results = response.data.organic_results || [];
+          const results = response.organic_results || response.data?.organic_results || [];
           
           for (const result of results) {
             const domain = new URL(result.link).hostname;

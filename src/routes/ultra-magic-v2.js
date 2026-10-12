@@ -10,6 +10,7 @@ import InternalLinkingWebBuilder from '../services/internal-linking-web-builder.
 import CTROptimizationEngine from '../services/ctr-optimization-engine.js';
 import FreeToolsAggregator from '../services/free-tools-aggregator.js';
 import { getGeminiKeyRotator } from '../services/gemini-key-rotator.js';
+import { getSerpApiKeyRotator } from '../services/serp-key-rotator.js';
 
 const router = express.Router();
 const ultraMagicV2 = new UltraMagicV2Enhanced();
@@ -248,6 +249,8 @@ router.get('/v2-dashboard', async (req, res) => {
   try {
     const rotator = getGeminiKeyRotator();
     const keyStats = rotator.getStats();
+    const serpRotator = getSerpApiKeyRotator();
+    const serpKeyStats = serpRotator.getStats();
     const linkingReport = await linkingBuilder.generateLinkingReport();
 
     res.json({
@@ -257,6 +260,7 @@ router.get('/v2-dashboard', async (req, res) => {
         v2_status: 'ACTIVE',
         v2_enhancements: {
           gemini_key_rotation: `${keyStats.total_keys} keys active`,
+          serp_key_rotation: `${serpKeyStats.total_keys} keys configured (${serpKeyStats.available_keys} available)`,
           keyword_clustering: 'ADVANCED',
           internal_linking: `${linkingReport.total_internal_links} links`,
           schema_markup: 'COMPLETE',
@@ -264,6 +268,7 @@ router.get('/v2-dashboard', async (req, res) => {
           free_data_sources: '8 sources'
         },
         key_rotation_stats: keyStats,
+        serp_key_rotation_stats: serpKeyStats,
         internal_linking_stats: linkingReport,
         power_level: 'MAXIMUM',
         v1_vs_v2: {

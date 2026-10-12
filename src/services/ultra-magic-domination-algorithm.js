@@ -3,13 +3,14 @@ import AutoBacklinkBuilder from './auto-backlink-builder.js';
 import ContentVelocityOptimizer from './content-velocity-optimizer.js';
 import Blog from '../modules/blog/blog.model.js';
 import axios from 'axios';
+import { getSerpApiKeyRotator } from './serp-key-rotator.js';
 
 class UltraMagicDominationAlgorithm {
   constructor() {
     this.magicSEO = new MagicSEORankingAlgorithm();
     this.backlinkBuilder = new AutoBacklinkBuilder();
     this.velocityOptimizer = new ContentVelocityOptimizer();
-    this.serpApiKey = process.env.SERP_API_KEY;
+    this.serpRotator = getSerpApiKeyRotator();
     this.geminiKey = process.env.GOOGLE_GEMINI_API_KEY;
     this.domain = 'easemyweb.in';
     
@@ -22,6 +23,10 @@ class UltraMagicDominationAlgorithm {
       competitorDestruction: 'ENABLED',
       marketDomination: 'TOTAL'
     };
+  }
+
+  get serpApiKey() {
+    return this.serpRotator.getKey();
   }
 
   /**

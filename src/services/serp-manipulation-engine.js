@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { getSerpApiKeyRotator } from './serp-key-rotator.js';
 
 class SERPManipulationEngine {
   constructor() {
     this.domain = 'easemyweb.in';
-    this.serpApiKey = process.env.SERP_API_KEY;
+    this.serpRotator = getSerpApiKeyRotator();
     this.geminiKey = process.env.GOOGLE_GEMINI_API_KEY;
     
     // Aggressive SERP manipulation tactics
@@ -17,6 +18,10 @@ class SERPManipulationEngine {
       reviewSnippetOptimization: true,
       newsResultInjection: true
     };
+  }
+
+  get serpApiKey() {
+    return this.serpRotator.getKey();
   }
 
   /**
